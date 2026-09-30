@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Bộ câu hỏi cá nhân — chỉ giữ sample_questions.md làm ví dụ
+quiz_md/*/
+!quiz_md/sample_questions.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
