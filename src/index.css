@@ -161,6 +161,69 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
   margin-top: 12px; padding-top: 12px;
   text-align: center;
 }
+.pass-tag {
+  display: inline-block; margin-top: 6px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 0.72rem; font-weight: 700;
+}
+.pass-tag.pass { background: #0d1f12; color: var(--success); }
+.pass-tag.fail { background: #1f0d10; color: var(--danger); }
+
+/* file total */
+.file-total {
+  font-size: 0.76rem; color: var(--text3);
+  padding: 6px 0 2px; border-top: 1px solid var(--border); margin-top: 4px;
+}
+
+/* checkbox row */
+.checkbox-row {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.8rem; color: var(--text2);
+  cursor: pointer; user-select: none;
+}
+.checkbox-row input[type=checkbox] {
+  width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer;
+}
+
+/* point grid */
+.point-grid { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.point-item { display: flex; align-items: center; gap: 8px; }
+.point-item input[type=number] { width: 70px; }
+
+/* timer bar */
+.timer-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 16px;
+  margin-bottom: 20px; position: sticky; top: 16px; z-index: 10;
+}
+.timer-icon { font-size: 1.1rem; }
+.timer-time {
+  font-family: 'Fira Code', monospace; font-size: 1.2rem; font-weight: 700;
+  color: var(--text);
+}
+.timer-bar.timer-danger { border-color: var(--danger); }
+.timer-bar.timer-danger .timer-time { color: var(--danger); }
+.timer-bar.timer-paused { opacity: 0.7; }
+.timer-tag {
+  font-size: 0.72rem; color: var(--warning);
+  border: 1px solid var(--warning); border-radius: 20px; padding: 2px 8px;
+}
+.timer-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* start gate */
+.start-gate {
+  text-align: center; padding: 80px 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* time's up banner */
+.timeup-banner {
+  background: #1f0d10; border: 1px solid var(--danger);
+  color: var(--danger); border-radius: var(--radius-sm);
+  padding: 10px 14px; font-size: 0.85rem; margin-bottom: 16px;
+}
 
 /* ── Main content ── */
 .main-content {
@@ -191,6 +254,8 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 .btn:disabled { opacity: 0.4; pointer-events: none; }
 .btn-primary { background: var(--accent); color: #111; }
 .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 0.78rem; }
 
 /* ── Quiz question area ── */
 .question-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
@@ -205,6 +270,7 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 .badge-hard { color: var(--danger); }
 .badge-multi { color: var(--accent2); }
 .badge-id { color: var(--text3); }
+.badge-point { color: var(--warning); border-color: var(--warning); }
 
 .question-card {
   background: var(--surface); border: 1px solid var(--border);

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { parseMarkdown } from './parser'
 import './App.css'
 
@@ -11,6 +11,23 @@ function shuffle(arr) {
   return a
 }
 
+function getPoint(q, pointMode, customPoints) {
+  if (q.point !== null && q.point !== undefined && !Number.isNaN(q.point)) return q.point
+  if (pointMode === 'difficulty') return customPoints[q.difficulty] ?? 1
+  return 1
+}
+
+function isCorrect(q, ans) {
+  const ck = new Set(q.correct_answer)
+  return ans && ans.size > 0 && ans.size === ck.size && [...ans].every(k => ck.has(k))
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
 export default function App() {
   const [allQuestions, setAllQuestions] = useState([])
   const [files, setFiles] = useState([])
@@ -21,12 +38,29 @@ export default function App() {
 
   const [selectedCats, setSelectedCats] = useState([])
   const [mode, setMode] = useState('shuffle')
+  const [useAll, setUseAll] = useState(true)
   const [limit, setLimit] = useState(20)
+
+  // ── Timer setup ──
+  const [timerEnabled, setTimerEnabled] = useState(false)
+  const [timerMinutes, setTimerMinutes] = useState(15)
+  const [examMode, setExamMode] = useState(false) // true = thi thật, không cho dừng
+  const [timerStarted, setTimerStarted] = useState(false)
+  const [timerPaused, setTimerPaused] = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState(0)
+  const [timeUp, setTimeUp] = useState(false)
+
+  // ── Scoring setup ──
+  const [scoreMode, setScoreMode] = useState('count') // 'count' | 'point'
+  const [pointMode, setPointMode] = useState('fixed') // 'fixed' | 'difficulty'
+  const [customPoints, setCustomPoints] = useState({ easy: 1, medium: 2, hard: 3 })
+  const [passPct, setPassPct] = useState(70)
 
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
   const [revealed, setRevealed] = useState({})
   const [current, setCurrent] = useState(0)
+  const [submitted, setSubmitted] = useState(false)
 
   const categories = [...new Set(allQuestions.map(q => q.category).filter(Boolean))]
 
@@ -57,28 +91,67 @@ export default function App() {
 
   const clearAll = () => {
     setAllQuestions([]); setFiles([])
-    setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0)
+    resetQuiz()
+  }
+
+  const resetQuiz = () => {
+    setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
+    setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
   }
 
   const buildQuiz = () => {
     let pool = allQuestions
     if (selectedCats.length > 0) pool = pool.filter(q => selectedCats.includes(q.category))
-    if (mode !== 'category') pool = shuffle(pool)
-    pool = pool.slice(0, limit || pool.length)
-    setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0)
+    if (mode === 'shuffle' || mode === 'random') pool = shuffle(pool)
+    if (!useAll) pool = pool.slice(0, limit || pool.length)
+    setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
+    setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
+    setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
   }
 
   const toggleCat = (cat) =>
     setSelectedCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
 
+  const startTimer = () => { setTimerStarted(true); setTimerPaused(false) }
+  const togglePause = () => setTimerPaused(p => !p)
+  const submitQuiz = () => {
+    setSubmitted(true)
+    setRevealed(prev => {
+      const next = { ...prev }
+      questions.forEach((_, i) => { if (!next[i]) next[i] = true })
+      return next
+    })
+  }
+
+  // ── Countdown tick ──
+  useEffect(() => {
+    if (!timerEnabled || !timerStarted || timerPaused || timeUp || submitted || secondsLeft <= 0) return
+    const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [timerEnabled, timerStarted, timerPaused, timeUp, submitted, secondsLeft])
+
+  // ── Time's up → auto-submit ──
+  useEffect(() => {
+    if (!timerEnabled || !timerStarted || timeUp || submitted || secondsLeft > 0) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTimeUp(true)
+    setSubmitted(true)
+    setRevealed(prev => {
+      const next = { ...prev }
+      questions.forEach((_, i) => { if (!next[i]) next[i] = true })
+      return next
+    })
+  }, [timerEnabled, timerStarted, timeUp, submitted, secondsLeft, questions])
+
   const q = questions[current]
   const isMulti = q?.type === 'multiple_choice'
   const sel = answers[current] ?? new Set()
   const isRevealed = !!revealed[current]
+  const locked = submitted || timeUp
   const correctKeys = q ? new Set(q.correct_answer) : new Set()
 
   const toggleOption = (key) => {
-    if (isRevealed) return
+    if (isRevealed || locked) return
     setAnswers(prev => {
       const s = new Set(prev[current] ?? [])
       if (isMulti) { s.has(key) ? s.delete(key) : s.add(key) } else { s.clear(); s.add(key) }
@@ -86,8 +159,8 @@ export default function App() {
     })
   }
 
-  const confirm = () => { if (sel.size) setRevealed(prev => ({ ...prev, [current]: true })) }
-  const skip = () => setRevealed(prev => ({ ...prev, [current]: true }))
+  const confirm = () => { if (sel.size && !locked) setRevealed(prev => ({ ...prev, [current]: true })) }
+  const skip = () => { if (!locked) setRevealed(prev => ({ ...prev, [current]: true })) }
 
   const getOptionClass = (key) => {
     if (!isRevealed) return sel.has(key) ? 'selected' : ''
@@ -97,15 +170,21 @@ export default function App() {
     return ''
   }
 
-  const totalCorrect = questions.filter((q, i) => {
-    const ans = answers[i] ?? new Set()
-    const ck = new Set(q.correct_answer)
-    return ans.size > 0 && ans.size === ck.size && [...ans].every(k => ck.has(k))
-  }).length
+  const totalCorrect = questions.filter((qq, i) => isCorrect(qq, answers[i])).length
   const totalSkipped = questions.filter((_, i) => revealed[i] && !(answers[i]?.size)).length
-  const allDone = questions.length > 0 && questions.every((_, i) => !!revealed[i])
-  const pct = questions.length ? Math.round((totalCorrect / questions.length) * 100) : 0
+  const allDone = questions.length > 0 && (submitted || questions.every((_, i) => !!revealed[i]))
+  const pctCount = questions.length ? Math.round((totalCorrect / questions.length) * 100) : 0
+
+  const maxPoint = questions.reduce((sum, qq) => sum + getPoint(qq, pointMode, customPoints), 0)
+  const earnedPoint = questions.reduce((sum, qq, i) => sum + (isCorrect(qq, answers[i]) ? getPoint(qq, pointMode, customPoints) : 0), 0)
+  const pctPoint = maxPoint ? Math.round((earnedPoint / maxPoint) * 100) : 0
+
+  const pct = scoreMode === 'point' ? pctPoint : pctCount
+  const passed = pct >= passPct
+
   const poolSize = allQuestions.filter(q => selectedCats.length === 0 || selectedCats.includes(q.category)).length
+
+  const needsStart = timerEnabled && questions.length > 0 && !timerStarted && !allDone
 
   return (
     <div className="app-layout">
@@ -113,12 +192,45 @@ export default function App() {
       {/* ══ MAIN: câu hỏi bên trái ══ */}
       <main className="main-content">
         <div className="main-inner">
-        {questions.length === 0 ? <EmptyState /> : (
+
+        {timerEnabled && questions.length > 0 && timerStarted && !allDone && (
+          <div className={`timer-bar${secondsLeft <= 30 ? ' timer-danger' : ''}${timerPaused ? ' timer-paused' : ''}`}>
+            <span className="timer-icon">⏱</span>
+            <span className="timer-time">{formatTime(secondsLeft)}</span>
+            {timerPaused && <span className="timer-tag">Đã dừng</span>}
+            <div className="timer-actions">
+              {!examMode && (
+                <button className="btn btn-ghost btn-sm" onClick={togglePause}>
+                  {timerPaused ? '▶ Tiếp tục' : '⏸ Dừng'}
+                </button>
+              )}
+              <button className="btn btn-danger btn-sm" onClick={submitQuiz}>Nộp bài</button>
+            </div>
+          </div>
+        )}
+
+        {needsStart ? (
+          <div className="start-gate">
+            <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⏱</div>
+            <p style={{ fontSize: '1rem', color: 'var(--text)', marginBottom: 6 }}>
+              Đề thi có giới hạn {timerMinutes} phút {examMode && '· Chế độ thi thật — không thể dừng giờ'}
+            </p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text3)', marginBottom: 20 }}>
+              Nhấn Bắt đầu để tính giờ làm bài
+            </p>
+            <button className="btn btn-primary" onClick={startTimer}>▶ Bắt đầu làm bài</button>
+          </div>
+        ) : questions.length === 0 ? <EmptyState /> : (
           <div>
+            {timeUp && (
+              <div className="timeup-banner">⏰ Đã hết giờ — bài làm được tự động nộp</div>
+            )}
+
             <div className="question-meta">
               {q.category && <span className="badge badge-cat">{q.category}</span>}
               {q.difficulty && <span className={`badge badge-${q.difficulty}`}>{q.difficulty}</span>}
               {isMulti && <span className="badge badge-multi">Nhiều đáp án</span>}
+              {scoreMode === 'point' && <span className="badge badge-point">{getPoint(q, pointMode, customPoints)} điểm</span>}
               {q.id && <span className="badge badge-id">{q.id}</span>}
               <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--text3)' }}>
                 {current + 1} / {questions.length}
@@ -140,7 +252,7 @@ export default function App() {
             <div className="options-list">
               {Object.entries(q.options).map(([key, val]) => (
                 <div key={key}
-                  className={`option-item ${getOptionClass(key)} ${isRevealed ? 'disabled' : ''}`}
+                  className={`option-item ${getOptionClass(key)} ${isRevealed || locked ? 'disabled' : ''}`}
                   onClick={() => toggleOption(key)}
                 >
                   <span className="option-key">{key}</span>
@@ -156,21 +268,30 @@ export default function App() {
               </div>
             )}
 
-            <div className="nav-row">
-              <button className="btn btn-ghost" onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}>← Trước</button>
-              <div className="nav-right">
-                {!isRevealed ? (
-                  <>
-                    <button className="btn btn-ghost" onClick={skip}>Bỏ qua</button>
-                    <button className="btn btn-primary" onClick={confirm} disabled={!sel.size}>Xác nhận</button>
-                  </>
-                ) : current < questions.length - 1 ? (
-                  <button className="btn btn-primary" onClick={() => setCurrent(c => c + 1)}>Tiếp theo →</button>
-                ) : (
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text2)' }}>Đã hoàn thành 🎉</span>
-                )}
+            {!locked && (
+              <div className="nav-row">
+                <button className="btn btn-ghost" onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}>← Trước</button>
+                <div className="nav-right">
+                  {!isRevealed ? (
+                    <>
+                      <button className="btn btn-ghost" onClick={skip}>Bỏ qua</button>
+                      <button className="btn btn-primary" onClick={confirm} disabled={!sel.size}>Xác nhận</button>
+                    </>
+                  ) : current < questions.length - 1 ? (
+                    <button className="btn btn-primary" onClick={() => setCurrent(c => c + 1)}>Tiếp theo →</button>
+                  ) : (
+                    <button className="btn btn-primary" onClick={submitQuiz}>Nộp bài 🏁</button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {locked && !allDone && (
+              <div className="nav-row">
+                <button className="btn btn-ghost" onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}>← Trước</button>
+                <button className="btn btn-ghost" onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}>Sau →</button>
+              </div>
+            )}
 
             {allDone && (
               <div style={{ marginTop: 32 }}>
@@ -192,6 +313,11 @@ export default function App() {
                             {isSkipped ? '⏭' : isOk ? '✓' : '✗'}
                           </span>
                           {rq.question}
+                          {scoreMode === 'point' && (
+                            <span style={{ marginLeft: 6, fontSize: '0.75rem', color: 'var(--text3)' }}>
+                              ({isOk ? getPoint(rq, pointMode, customPoints) : 0}/{getPoint(rq, pointMode, customPoints)} điểm)
+                            </span>
+                          )}
                         </div>
                         {rq.code && <pre className="code-block" style={{ marginTop: 6, fontSize: '0.76rem' }}><code>{rq.code}</code></pre>}
                         <div className="review-ans">
@@ -249,6 +375,7 @@ export default function App() {
                 <span className="file-count">{f.count} câu</span>
               </div>
             ))}
+            <div className="file-total">Tổng cộng: <strong>{allQuestions.length} câu</strong></div>
             <button className="btn-clear" onClick={clearAll}>Xoá tất cả</button>
           </div>
         )}
@@ -266,19 +393,79 @@ export default function App() {
 
             <div className="config-label" style={{ marginTop: 12 }}>Thứ tự</div>
             <select value={mode} onChange={e => setMode(e.target.value)}>
-              <option value="shuffle">Xáo trộn</option>
-              <option value="category">Theo chủ đề</option>
-              <option value="random">Random</option>
+              <option value="shuffle">Xáo trộn (random)</option>
+              <option value="category">Theo thứ tự trong file</option>
             </select>
 
-            <div className="config-label" style={{ marginTop: 12 }}>Số câu</div>
+            <div className="config-label" style={{ marginTop: 12 }}>Số câu sử dụng</div>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={useAll} onChange={e => setUseAll(e.target.checked)} />
+              Dùng tất cả ({poolSize} câu)
+            </label>
+            {!useAll && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                <input type="number" min={1} max={poolSize} value={limit}
+                  onChange={e => setLimit(Math.max(1, Math.min(poolSize, +e.target.value)))} />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>/ {poolSize}</span>
+              </div>
+            )}
+
+            {/* Timer setup */}
+            <div className="config-label" style={{ marginTop: 14 }}>Giới hạn thời gian</div>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={timerEnabled} onChange={e => setTimerEnabled(e.target.checked)} />
+              Bật đếm giờ
+            </label>
+            {timerEnabled && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                  <input type="number" min={1} max={600} value={timerMinutes}
+                    onChange={e => setTimerMinutes(Math.max(1, +e.target.value))} />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>phút</span>
+                </div>
+                <label className="checkbox-row" style={{ marginTop: 6 }}>
+                  <input type="checkbox" checked={examMode} onChange={e => setExamMode(e.target.checked)} />
+                  Chế độ thi thật (không thể dừng giờ)
+                </label>
+              </>
+            )}
+
+            {/* Scoring setup */}
+            <div className="config-label" style={{ marginTop: 14 }}>Cách tính điểm</div>
+            <select value={scoreMode} onChange={e => setScoreMode(e.target.value)}>
+              <option value="count">Đếm số câu đúng</option>
+              <option value="point">Tính theo thang điểm (point)</option>
+            </select>
+
+            {scoreMode === 'point' && (
+              <>
+                <div className="config-label" style={{ marginTop: 10 }}>Point mặc định (khi file không set)</div>
+                <select value={pointMode} onChange={e => setPointMode(e.target.value)}>
+                  <option value="fixed">Mỗi câu 1 điểm</option>
+                  <option value="difficulty">Theo độ khó</option>
+                </select>
+                {pointMode === 'difficulty' && (
+                  <div className="point-grid">
+                    {['easy', 'medium', 'hard'].map(d => (
+                      <div key={d} className="point-item">
+                        <span className={`badge badge-${d}`}>{d}</span>
+                        <input type="number" min={0} value={customPoints[d]}
+                          onChange={e => setCustomPoints(prev => ({ ...prev, [d]: Math.max(0, +e.target.value) }))} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="config-label" style={{ marginTop: 14 }}>Tỉ lệ đậu (pass)</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input type="number" min={1} max={poolSize} value={limit}
-                onChange={e => setLimit(Math.max(1, Math.min(poolSize, +e.target.value)))} />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>/ {poolSize}</span>
+              <input type="number" min={1} max={100} value={passPct}
+                onChange={e => setPassPct(Math.max(1, Math.min(100, +e.target.value)))} />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>%</span>
             </div>
 
-            <button className="btn btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={buildQuiz}>
+            <button className="btn btn-primary" style={{ width: '100%', marginTop: 14 }} onClick={buildQuiz}>
               {questions.length > 0 ? '↺ Gen lại' : 'Bắt đầu'}
             </button>
           </div>
@@ -288,7 +475,7 @@ export default function App() {
         {questions.length > 0 && (
           <div className="nav-section">
             <div className="config-label">
-              Câu hỏi {allDone && <span style={{ color: 'var(--success)', fontWeight: 700 }}>{pct}%</span>}
+              Câu hỏi {allDone && <span style={{ color: passed ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{pct}%</span>}
             </div>
             <div className="sidebar-nav">
               {questions.map((_, i) => {
@@ -311,8 +498,12 @@ export default function App() {
         {/* Kết quả tổng khi xong */}
         {allDone && (
           <div className="result-mini">
-            <div style={{ fontSize: '2rem', fontWeight: 800, color: pct >= 70 ? 'var(--success)' : 'var(--danger)' }}>{pct}%</div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text2)', marginTop: 2 }}>
+            <div style={{ fontSize: '2rem', fontWeight: 800, color: passed ? 'var(--success)' : 'var(--danger)' }}>{pct}%</div>
+            <div className={`pass-tag ${passed ? 'pass' : 'fail'}`}>{passed ? '✓ Đạt' : '✗ Không đạt'} (ngưỡng {passPct}%)</div>
+            {scoreMode === 'point' && (
+              <div style={{ fontSize: '0.78rem', color: 'var(--text3)', marginTop: 2 }}>{earnedPoint} / {maxPoint} điểm</div>
+            )}
+            <div style={{ fontSize: '0.82rem', color: 'var(--text2)', marginTop: 4 }}>
               <span style={{ color: 'var(--success)' }}>{totalCorrect} đúng</span>
               {' · '}
               <span style={{ color: 'var(--danger)' }}>{questions.length - totalCorrect - totalSkipped} sai</span>
@@ -380,6 +571,7 @@ Mỗi câu hỏi là một block nằm giữa hai dấu \`---\`. Nhiều câu h�
 | code_lang | Không | string | Ngôn ngữ code, vd dart, javascript, sql |
 | explanation | Không | string | Giải thích đáp án, hiện sau khi trả lời |
 | tags | Không | array | Danh sách tag, vd [react, hook, useState] |
+| point | Không | number | Điểm của câu hỏi khi tính theo thang điểm. Không set thì app tự gán theo difficulty (easy=1, medium=2, hard=3) hoặc theo cấu hình lúc tạo đề |
 
 ## Ví dụ câu hỏi đơn giản (single_choice)
 
@@ -398,6 +590,7 @@ options:
 correct_answer: A
 explanation: Arrow function kế thừa this từ lexical scope bao ngoài, không có this riêng.
 tags: [arrow-function, this, es6]
+point: 2
 ---
 
 ## Ví dụ câu hỏi kèm code
@@ -444,8 +637,9 @@ explanation: useState và useEffect là hook built-in. useLocalStorage và useDe
 1. correct_answer là 1 key duy nhất nếu type: single_choice, hoặc mảng [A, C] nếu type: multiple_choice.
 2. Nếu câu hỏi có đoạn code riêng, dùng code_lang + code: | rồi xuống dòng, indent code sâu hơn indent của "code:".
 3. Có thể dùng backtick \`...\` để inline code ngay trong question/options/explanation.
-4. Không thêm text nào ngoài các block --- ... ---.
-5. File kết quả phải là .md thuần, không bọc trong markdown code fence khi xuất ra.
+4. point là số nguyên tuỳ chọn, đại diện điểm số câu hỏi khi chấm theo thang điểm (không phải đếm số câu đúng). Nếu không chắc, cứ set theo độ khó: easy=1, medium=2, hard=3.
+5. Không thêm text nào ngoài các block --- ... ---.
+6. File kết quả phải là .md thuần, không bọc trong markdown code fence khi xuất ra.
 
 ---
 # YÊU CẦU (điền vào phần dưới rồi gửi cho AI để generate bộ câu hỏi)
@@ -510,6 +704,7 @@ function HelpModal({ onClose }) {
               <tr><td>code_lang</td><td>Không</td><td>Ngôn ngữ code, vd <code>dart</code></td></tr>
               <tr><td>explanation</td><td>Không</td><td>Giải thích đáp án</td></tr>
               <tr><td>tags</td><td>Không</td><td>Danh sách tag, vd <code>[react, hook]</code></td></tr>
+              <tr><td>point</td><td>Không</td><td>Điểm câu hỏi khi chấm theo thang điểm, vd <code>2</code>. Không set thì tự tính theo độ khó</td></tr>
             </tbody>
           </table>
 

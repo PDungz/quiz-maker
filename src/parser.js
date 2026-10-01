@@ -112,8 +112,9 @@ function parseYamlBlock(yaml) {
         : (obj.correct_answer || '').split(',').map(s => s.trim()).filter(Boolean),
       explanation: obj.explanation || '',
       tags: Array.isArray(obj.tags) ? obj.tags : [],
+      point: obj.point !== undefined && obj.point !== '' ? Number(obj.point) : null,
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
