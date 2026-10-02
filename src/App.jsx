@@ -51,6 +51,7 @@ export default function App() {
   const [timeUp, setTimeUp] = useState(false)
 
   // ── Scoring setup ──
+  const [revealMode, setRevealMode] = useState('instant') // 'instant' | 'end'
   const [scoreMode, setScoreMode] = useState('count') // 'count' | 'point'
   const [pointMode, setPointMode] = useState('fixed') // 'fixed' | 'difficulty'
   const [customPoints, setCustomPoints] = useState({ easy: 1, medium: 2, hard: 3 })
@@ -133,7 +134,7 @@ export default function App() {
   // ── Time's up → auto-submit ──
   useEffect(() => {
     if (!timerEnabled || !timerStarted || timeUp || submitted || secondsLeft > 0) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing with an external countdown timer finishing
     setTimeUp(true)
     setSubmitted(true)
     setRevealed(prev => {
@@ -143,15 +144,19 @@ export default function App() {
     })
   }, [timerEnabled, timerStarted, timeUp, submitted, secondsLeft, questions])
 
+  const allDone = questions.length > 0 && (submitted || questions.every((_, i) => !!revealed[i]))
+
   const q = questions[current]
   const isMulti = q?.type === 'multiple_choice'
   const sel = answers[current] ?? new Set()
-  const isRevealed = !!revealed[current]
+  const answered = !!revealed[current]
   const locked = submitted || timeUp
+  const showAnswer = (revealMode === 'instant' && answered) || allDone
+  const isRevealed = showAnswer
   const correctKeys = q ? new Set(q.correct_answer) : new Set()
 
   const toggleOption = (key) => {
-    if (isRevealed || locked) return
+    if ((revealMode === 'instant' && answered) || locked) return
     setAnswers(prev => {
       const s = new Set(prev[current] ?? [])
       if (isMulti) { s.has(key) ? s.delete(key) : s.add(key) } else { s.clear(); s.add(key) }
@@ -159,8 +164,16 @@ export default function App() {
     })
   }
 
-  const confirm = () => { if (sel.size && !locked) setRevealed(prev => ({ ...prev, [current]: true })) }
-  const skip = () => { if (!locked) setRevealed(prev => ({ ...prev, [current]: true })) }
+  const confirm = () => {
+    if (!sel.size || locked) return
+    setRevealed(prev => ({ ...prev, [current]: true }))
+    if (revealMode === 'end' && current < questions.length - 1) setCurrent(c => c + 1)
+  }
+  const skip = () => {
+    if (locked) return
+    setRevealed(prev => ({ ...prev, [current]: true }))
+    if (revealMode === 'end' && current < questions.length - 1) setCurrent(c => c + 1)
+  }
 
   const getOptionClass = (key) => {
     if (!isRevealed) return sel.has(key) ? 'selected' : ''
@@ -172,7 +185,6 @@ export default function App() {
 
   const totalCorrect = questions.filter((qq, i) => isCorrect(qq, answers[i])).length
   const totalSkipped = questions.filter((_, i) => revealed[i] && !(answers[i]?.size)).length
-  const allDone = questions.length > 0 && (submitted || questions.every((_, i) => !!revealed[i]))
   const pctCount = questions.length ? Math.round((totalCorrect / questions.length) * 100) : 0
 
   const maxPoint = questions.reduce((sum, qq) => sum + getPoint(qq, pointMode, customPoints), 0)
@@ -247,12 +259,12 @@ export default function App() {
               )}
             </div>
 
-            {isMulti && !isRevealed && <p className="multi-hint">Chọn tất cả đáp án đúng rồi bấm Xác nhận</p>}
+            {isMulti && !answered && <p className="multi-hint">Chọn tất cả đáp án đúng rồi bấm Xác nhận</p>}
 
             <div className="options-list">
               {Object.entries(q.options).map(([key, val]) => (
                 <div key={key}
-                  className={`option-item ${getOptionClass(key)} ${isRevealed || locked ? 'disabled' : ''}`}
+                  className={`option-item ${getOptionClass(key)} ${answered || locked ? 'disabled' : ''}`}
                   onClick={() => toggleOption(key)}
                 >
                   <span className="option-key">{key}</span>
@@ -272,7 +284,7 @@ export default function App() {
               <div className="nav-row">
                 <button className="btn btn-ghost" onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}>← Trước</button>
                 <div className="nav-right">
-                  {!isRevealed ? (
+                  {!answered ? (
                     <>
                       <button className="btn btn-ghost" onClick={skip}>Bỏ qua</button>
                       <button className="btn btn-primary" onClick={confirm} disabled={!sel.size}>Xác nhận</button>
@@ -429,6 +441,13 @@ export default function App() {
                 </label>
               </>
             )}
+
+            {/* Reveal mode setup */}
+            <div className="config-label" style={{ marginTop: 14 }}>Thời điểm chấm điểm</div>
+            <select value={revealMode} onChange={e => setRevealMode(e.target.value)}>
+              <option value="instant">Chấm ngay sau mỗi câu</option>
+              <option value="end">Chấm sau khi hoàn thành tất cả</option>
+            </select>
 
             {/* Scoring setup */}
             <div className="config-label" style={{ marginTop: 14 }}>Cách tính điểm</div>
