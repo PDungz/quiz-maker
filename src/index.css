@@ -214,6 +214,7 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 .nav-dot.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .nav-dot.dot-correct { background: var(--success); color: var(--accent-text); border-color: var(--success); }
 .nav-dot.dot-wrong { background: var(--danger); color: var(--accent-text); border-color: var(--danger); }
+.nav-dot.dot-answered { border-color: var(--accent2); color: var(--text); }
 .nav-dot.active { outline: 2px solid var(--accent2); outline-offset: 1px; }
 
 /* result mini */

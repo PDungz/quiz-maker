@@ -531,13 +531,15 @@ export default function App() {
             <div className="sidebar-nav">
               {questions.map((_, i) => {
                 const ans = answers[i] ?? new Set()
-                const done = !!revealed[i]
+                const wasAnswered = !!revealed[i]
+                const canShowResult = wasAnswered && (revealMode === 'instant' || allDone)
                 const ck = new Set(questions[i].correct_answer)
-                const ok = done && ans.size > 0 && ans.size === ck.size && [...ans].every(k => ck.has(k))
-                const bad = done && !ok
+                const ok = canShowResult && ans.size > 0 && ans.size === ck.size && [...ans].every(k => ck.has(k))
+                const bad = canShowResult && !ok
+                const pending = wasAnswered && !canShowResult
                 return (
                   <div key={i}
-                    className={`nav-dot${i === current ? ' active' : ''}${ok ? ' dot-correct' : ''}${bad ? ' dot-wrong' : ''}`}
+                    className={`nav-dot${i === current ? ' active' : ''}${ok ? ' dot-correct' : ''}${bad ? ' dot-wrong' : ''}${pending ? ' dot-answered' : ''}`}
                     onClick={() => { setCurrent(i); window.scrollTo(0, 0) }}
                   >{i + 1}</div>
                 )
