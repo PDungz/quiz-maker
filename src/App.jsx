@@ -42,6 +42,8 @@ export default function App() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
   const [allQuestions, setAllQuestions] = useState([])
   const [files, setFiles] = useState([])
   const fileRef = useRef()
@@ -215,7 +217,14 @@ export default function App() {
     <div className="app-layout">
 
       {/* ══ MAIN: câu hỏi bên trái ══ */}
-      <main className="main-content">
+      <main className={`main-content${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+        {sidebarCollapsed && (
+          <button
+            className="sidebar-expand-btn"
+            title="Mở lại thanh cài đặt"
+            onClick={() => setSidebarCollapsed(false)}
+          >⚙</button>
+        )}
         <div className="main-inner">
 
         {timerEnabled && questions.length > 0 && timerStarted && !allDone && (
@@ -363,7 +372,7 @@ export default function App() {
       </main>
 
       {/* ══ SIDEBAR: config bên phải ══ */}
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
 
         <div className="sidebar-header">
           <div className="logo">📝</div>
@@ -378,6 +387,11 @@ export default function App() {
             title="Hướng dẫn format file .md"
             onClick={() => setShowHelp(true)}
           >?</button>
+          <button
+            className="collapse-btn"
+            title="Thu nhỏ thanh cài đặt"
+            onClick={() => setSidebarCollapsed(true)}
+          >»</button>
         </div>
 
         {/* Upload */}
