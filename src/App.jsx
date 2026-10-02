@@ -28,7 +28,20 @@ function formatTime(sec) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+function getInitialTheme() {
+  const saved = localStorage.getItem('theme')
+  if (saved === 'light' || saved === 'dark') return saved
+  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+}
+
 export default function App() {
+  const [theme, setTheme] = useState(getInitialTheme)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
   const [allQuestions, setAllQuestions] = useState([])
   const [files, setFiles] = useState([])
   const fileRef = useRef()
@@ -355,6 +368,11 @@ export default function App() {
         <div className="sidebar-header">
           <div className="logo">📝</div>
           <div className="sidebar-title">Quiz</div>
+          <button
+            className="theme-btn"
+            title={theme === 'dark' ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+          >{theme === 'dark' ? '☀️' : '🌙'}</button>
           <button
             className="help-btn"
             title="Hướng dẫn format file .md"
