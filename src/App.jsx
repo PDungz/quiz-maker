@@ -34,6 +34,107 @@ function getInitialTheme() {
   return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
 }
 
+function slugifyFilename(name) {
+  return name
+    .replace(/\.md$/i, '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'quiz'
+}
+
+function formatTimestampForFilename(date) {
+  const pad = n => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`
+}
+
+function buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames) {
+  const now = new Date()
+  const lines = []
+  lines.push(`# Kết quả bài làm — Quiz Maker`)
+  lines.push('')
+  if (sourceNames?.length) lines.push(`File nguồn: ${sourceNames.join(', ')}`)
+  lines.push(`Ngày làm: ${now.toLocaleString('vi-VN')}`)
+  lines.push(`Điểm: ${pct}% — ${passed ? 'Đạt' : 'Không đạt'} (ngưỡng ${passPct}%)`)
+  if (scoreMode === 'point') {
+    const maxPoint = questions.reduce((sum, qq) => sum + getPoint(qq, pointMode, customPoints), 0)
+    const earnedPoint = questions.reduce((sum, qq, i) => sum + (isCorrect(qq, answers[i]) ? getPoint(qq, pointMode, customPoints) : 0), 0)
+    lines.push(`Thang điểm: ${earnedPoint} / ${maxPoint} điểm`)
+  }
+  lines.push('')
+  lines.push('---')
+  lines.push('')
+
+  questions.forEach((q, i) => {
+    const ans = answers[i] ?? new Set()
+    const ck = new Set(q.correct_answer)
+    const isSkipped = !ans.size
+    const ok = !isSkipped && isCorrect(q, ans)
+    const status = isSkipped ? 'Bỏ qua' : ok ? 'Đúng' : 'Sai'
+
+    lines.push(`## Câu ${i + 1}: ${q.question}`)
+    lines.push('')
+    if (q.code) {
+      lines.push('```' + (q.code_lang || ''))
+      lines.push(q.code)
+      lines.push('```')
+      lines.push('')
+    }
+    lines.push(`**Kết quả: ${status}**`)
+    if (!isSkipped) lines.push(`- Bạn chọn: ${[...ans].map(k => `${k}. ${q.options[k] ?? ''}`).join('; ')}`)
+    lines.push(`- Đáp án đúng: ${[...ck].map(k => `${k}. ${q.options[k] ?? ''}`).join('; ')}`)
+    lines.push('')
+    lines.push('Giải thích')
+    const explanationParts = []
+    if (q.explanation) explanationParts.push(q.explanation)
+    explanationParts.push(`Đáp án đúng: ${[...ck].map(k => `${q.options[k] ?? ''}`).join(', ')}.`)
+    const wrongKeys = Object.keys(q.options).filter(k => !ck.has(k))
+    if (wrongKeys.length) explanationParts.push(`Đáp án sai: ${wrongKeys.map(k => q.options[k]).join(', ')}.`)
+    lines.push(explanationParts.join(' '))
+    lines.push('')
+    if (q.category) lines.push(`Lĩnh vực: ${q.category}${q.subcategory ? ' / ' + q.subcategory : ''}`)
+    lines.push('')
+    lines.push('---')
+    lines.push('')
+  })
+
+  const snapshot = {
+    savedAt: now.toISOString(),
+    sourceNames: sourceNames ?? [],
+    scoreMode, pointMode, customPoints, pct, passed, passPct,
+    questions,
+    answers: questions.map((_, i) => [...(answers[i] ?? new Set())]),
+  }
+  lines.push(`<!-- QUIZ_MAKER_DATA\n${JSON.stringify(snapshot)}\n-->`)
+
+  return { content: lines.join('\n'), now }
+}
+
+function parseExportSnapshot(text) {
+  const match = text.match(/<!-- QUIZ_MAKER_DATA\n([\s\S]*?)\n-->/)
+  if (!match) return null
+  try {
+    const snapshot = JSON.parse(match[1])
+    const answers = {}
+    snapshot.answers.forEach((keys, i) => { answers[i] = new Set(keys) })
+    return { ...snapshot, answers }
+  } catch {
+    return null
+  }
+}
+
+function downloadTextFile(filename, content) {
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 export default function App() {
   const [theme, setTheme] = useState(getInitialTheme)
 
@@ -43,6 +144,8 @@ export default function App() {
   }, [theme])
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [viewMode, setViewMode] = useState('single') // 'single' | 'scroll'
+  const [reviewFilter, setReviewFilter] = useState('all') // 'all' | 'correct' | 'wrong' | 'skipped'
 
   const [allQuestions, setAllQuestions] = useState([])
   const [files, setFiles] = useState([])
@@ -50,6 +153,23 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false)
 
   const [showHelp, setShowHelp] = useState(false)
+  const [importedResult, setImportedResult] = useState(null)
+  const importResultRef = useRef()
+
+  const loadResultFile = (fileList) => {
+    const file = fileList?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = e => {
+      const snapshot = parseExportSnapshot(e.target.result)
+      if (!snapshot) {
+        alert('File này không phải kết quả hợp lệ do Quiz Maker xuất ra.')
+        return
+      }
+      setImportedResult(snapshot)
+    }
+    reader.readAsText(file)
+  }
 
   const [selectedCats, setSelectedCats] = useState([])
   const [mode, setMode] = useState('shuffle')
@@ -113,6 +233,7 @@ export default function App() {
   const resetQuiz = () => {
     setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
+    setReviewFilter('all')
   }
 
   const buildQuiz = () => {
@@ -123,6 +244,7 @@ export default function App() {
     setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
+    setReviewFilter('all')
   }
 
   const toggleCat = (cat) =>
@@ -168,35 +290,48 @@ export default function App() {
   const locked = submitted || timeUp
   const showAnswer = (revealMode === 'instant' && answered) || allDone
   const isRevealed = showAnswer
-  const correctKeys = q ? new Set(q.correct_answer) : new Set()
 
-  const toggleOption = (key) => {
-    if ((revealMode === 'instant' && answered) || locked) return
+  const toggleOptionAt = (idx, key) => {
+    const qq = questions[idx]
+    const isMultiQ = qq?.type === 'multiple_choice'
+    const wasAnswered = !!revealed[idx]
+    if ((revealMode === 'instant' && wasAnswered) || locked) return
     setAnswers(prev => {
-      const s = new Set(prev[current] ?? [])
-      if (isMulti) { s.has(key) ? s.delete(key) : s.add(key) } else { s.clear(); s.add(key) }
-      return { ...prev, [current]: s }
+      const s = new Set(prev[idx] ?? [])
+      if (isMultiQ) { s.has(key) ? s.delete(key) : s.add(key) } else { s.clear(); s.add(key) }
+      return { ...prev, [idx]: s }
     })
   }
+  const toggleOption = (key) => toggleOptionAt(current, key)
 
-  const confirm = () => {
-    if (!sel.size || locked) return
-    setRevealed(prev => ({ ...prev, [current]: true }))
-    if (revealMode === 'end' && current < questions.length - 1) setCurrent(c => c + 1)
+  const confirmAt = (idx) => {
+    const ans = answers[idx] ?? new Set()
+    if (!ans.size || locked) return
+    setRevealed(prev => ({ ...prev, [idx]: true }))
+    if (revealMode === 'end' && viewMode === 'single' && idx < questions.length - 1) setCurrent(c => c + 1)
   }
-  const skip = () => {
+  const confirm = () => confirmAt(current)
+
+  const skipAt = (idx) => {
     if (locked) return
-    setRevealed(prev => ({ ...prev, [current]: true }))
-    if (revealMode === 'end' && current < questions.length - 1) setCurrent(c => c + 1)
+    setRevealed(prev => ({ ...prev, [idx]: true }))
+    if (revealMode === 'end' && viewMode === 'single' && idx < questions.length - 1) setCurrent(c => c + 1)
   }
+  const skip = () => skipAt(current)
 
-  const getOptionClass = (key) => {
-    if (!isRevealed) return sel.has(key) ? 'selected' : ''
-    if (correctKeys.has(key) && sel.has(key)) return 'correct'
-    if (!correctKeys.has(key) && sel.has(key)) return 'wrong'
-    if (correctKeys.has(key)) return 'reveal-correct'
+  const getOptionClassAt = (idx, key) => {
+    const qq = questions[idx]
+    const ansIdx = answers[idx] ?? new Set()
+    const ckIdx = qq ? new Set(qq.correct_answer) : new Set()
+    const answeredIdx = !!revealed[idx]
+    const showAnswerIdx = (revealMode === 'instant' && answeredIdx) || allDone
+    if (!showAnswerIdx) return ansIdx.has(key) ? 'selected' : ''
+    if (ckIdx.has(key) && ansIdx.has(key)) return 'correct'
+    if (!ckIdx.has(key) && ansIdx.has(key)) return 'wrong'
+    if (ckIdx.has(key)) return 'reveal-correct'
     return ''
   }
+  const getOptionClass = (key) => getOptionClassAt(current, key)
 
   const totalCorrect = questions.filter((qq, i) => isCorrect(qq, answers[i])).length
   const totalSkipped = questions.filter((_, i) => revealed[i] && !(answers[i]?.size)).length
@@ -243,6 +378,13 @@ export default function App() {
           </div>
         )}
 
+        {questions.length > 0 && !needsStart && !allDone && (
+          <div className="view-toggle">
+            <button className={`view-toggle-btn${viewMode === 'single' ? ' active' : ''}`} onClick={() => setViewMode('single')}>Từng câu</button>
+            <button className={`view-toggle-btn${viewMode === 'scroll' ? ' active' : ''}`} onClick={() => setViewMode('scroll')}>Scroll tất cả</button>
+          </div>
+        )}
+
         {needsStart ? (
           <div className="start-gate">
             <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⏱</div>
@@ -254,7 +396,52 @@ export default function App() {
             </p>
             <button className="btn btn-primary" onClick={startTimer}>▶ Bắt đầu làm bài</button>
           </div>
-        ) : questions.length === 0 ? <EmptyState /> : (
+        ) : questions.length === 0 ? <EmptyState /> : allDone ? (
+          <>
+            {timeUp && (
+              <div className="timeup-banner">⏰ Đã hết giờ — bài làm được tự động nộp</div>
+            )}
+            <div className="review-filter">
+              <button className={`review-filter-btn${reviewFilter === 'all' ? ' active' : ''}`} onClick={() => setReviewFilter('all')}>
+                Tất cả <span className="review-filter-count">{questions.length}</span>
+              </button>
+              <button className={`review-filter-btn filter-correct${reviewFilter === 'correct' ? ' active' : ''}`} onClick={() => setReviewFilter('correct')}>
+                Đúng <span className="review-filter-count">{totalCorrect}</span>
+              </button>
+              <button className={`review-filter-btn filter-wrong${reviewFilter === 'wrong' ? ' active' : ''}`} onClick={() => setReviewFilter('wrong')}>
+                Sai <span className="review-filter-count">{questions.length - totalCorrect - totalSkipped}</span>
+              </button>
+              <button className={`review-filter-btn filter-skipped${reviewFilter === 'skipped' ? ' active' : ''}`} onClick={() => setReviewFilter('skipped')}>
+                Bỏ qua <span className="review-filter-count">{totalSkipped}</span>
+              </button>
+            </div>
+            <ReviewScrollView
+              questions={questions}
+              answers={answers}
+              reviewFilter={reviewFilter}
+              scoreMode={scoreMode}
+              pointMode={pointMode}
+              customPoints={customPoints}
+            />
+          </>
+        ) : viewMode === 'scroll' ? (
+          <ScrollView
+            questions={questions}
+            answers={answers}
+            revealed={revealed}
+            revealMode={revealMode}
+            allDone={allDone}
+            locked={locked}
+            scoreMode={scoreMode}
+            pointMode={pointMode}
+            customPoints={customPoints}
+            toggleOptionAt={toggleOptionAt}
+            getOptionClassAt={getOptionClassAt}
+            confirmAt={confirmAt}
+            skipAt={skipAt}
+            onSubmit={submitQuiz}
+          />
+        ) : (
           <div>
             {timeUp && (
               <div className="timeup-banner">⏰ Đã hết giờ — bài làm được tự động nộp</div>
@@ -326,46 +513,6 @@ export default function App() {
                 <button className="btn btn-ghost" onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))} disabled={current === questions.length - 1}>Sau →</button>
               </div>
             )}
-
-            {allDone && (
-              <div style={{ marginTop: 32 }}>
-                <p className="section-title" style={{ marginBottom: 12 }}>Chi tiết từng câu</p>
-                <div className="review-list">
-                  {questions.map((rq, i) => {
-                    const ans = answers[i] ?? new Set()
-                    const ck = new Set(rq.correct_answer)
-                    const isSkipped = !ans.size
-                    const isOk = !isSkipped && ans.size === ck.size && [...ans].every(k => ck.has(k))
-                    return (
-                      <div key={i}
-                        className={`review-item ${isSkipped ? 'skipped-item' : isOk ? 'correct-item' : 'wrong-item'}`}
-                        onClick={() => { setCurrent(i); window.scrollTo(0, 0) }}
-                      >
-                        <div className="review-q">
-                          <strong style={{ opacity: 0.4, marginRight: 6 }}>#{i + 1}</strong>
-                          <span style={{ marginRight: 6, fontWeight: 700, color: isSkipped ? 'var(--text3)' : isOk ? 'var(--success)' : 'var(--danger)' }}>
-                            {isSkipped ? '⏭' : isOk ? '✓' : '✗'}
-                          </span>
-                          {rq.question}
-                          {scoreMode === 'point' && (
-                            <span style={{ marginLeft: 6, fontSize: '0.75rem', color: 'var(--text3)' }}>
-                              ({isOk ? getPoint(rq, pointMode, customPoints) : 0}/{getPoint(rq, pointMode, customPoints)} điểm)
-                            </span>
-                          )}
-                        </div>
-                        {rq.code && <pre className="code-block" style={{ marginTop: 6, fontSize: '0.76rem' }}><code>{rq.code}</code></pre>}
-                        <div className="review-ans">
-                          {!isSkipped && <span>Bạn: <strong>{[...ans].join(', ')}</strong> · </span>}
-                          Đúng: <strong style={{ color: 'var(--success)' }}>{rq.correct_answer.join(', ')}</strong>
-                          {Object.entries(rq.options).filter(([k]) => ck.has(k)).map(([k, v]) => <span key={k}> — {v}</span>)}
-                        </div>
-                        {rq.explanation && <div className="review-exp">{rq.explanation}</div>}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         )}
         </div>
@@ -406,6 +553,11 @@ export default function App() {
           <input ref={fileRef} type="file" accept=".md" multiple style={{ display: 'none' }}
             onChange={e => loadFiles(e.target.files)} />
         </div>
+        <button className="import-result-btn" onClick={() => importResultRef.current.click()}>
+          📂 Mở lại kết quả đã lưu
+          <input ref={importResultRef} type="file" accept=".md" style={{ display: 'none' }}
+            onChange={e => { loadResultFile(e.target.files); e.target.value = '' }} />
+        </button>
         <div className="help-link" onClick={() => setShowHelp(true)}>
           ℹ️ Xem hướng dẫn định dạng file .md
         </div>
@@ -563,12 +715,22 @@ export default function App() {
               {' · '}
               <span style={{ color: 'var(--text3)' }}>{totalSkipped} bỏ qua</span>
             </div>
+            <button
+              className="btn btn-ghost export-btn"
+              onClick={() => {
+                const sourceNames = files.map(f => f.name)
+                const { content, now } = buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames)
+                const baseName = sourceNames.length === 1 ? slugifyFilename(sourceNames[0]) : sourceNames.length > 1 ? 'nhieu-file' : 'quiz'
+                downloadTextFile(`ket-qua_${baseName}_${formatTimestampForFilename(now)}.md`, content)
+              }}
+            >📥 Xuất kết quả (.md)</button>
           </div>
         )}
 
       </aside>
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {importedResult && <ImportedResultModal snapshot={importedResult} onClose={() => setImportedResult(null)} />}
     </div>
   )
 }
@@ -763,6 +925,214 @@ function HelpModal({ onClose }) {
 
           <p style={{ marginTop: 14 }}>Toàn bộ nội dung sẽ được copy (bấm nút ở góc trên):</p>
           <CopyBlock text={FULL_GUIDE} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReviewScrollView({ questions, answers, reviewFilter, scoreMode, pointMode, customPoints }) {
+  const items = questions.map((q, i) => {
+    const ans = answers[i] ?? new Set()
+    const ck = new Set(q.correct_answer)
+    const isSkipped = !ans.size
+    const isOk = !isSkipped && isCorrect(q, ans)
+    const status = isSkipped ? 'skipped' : isOk ? 'correct' : 'wrong'
+    return { q, i, ans, ck, isSkipped, isOk, status }
+  })
+  const filtered = items.filter(it => reviewFilter === 'all' || reviewFilter === it.status)
+
+  if (!filtered.length) {
+    return <p style={{ fontSize: '0.85rem', color: 'var(--text3)', textAlign: 'center', padding: '40px 0' }}>Không có câu nào thuộc mục này</p>
+  }
+
+  return (
+    <div className="scroll-view">
+      {filtered.map(({ q, i, ans, ck, isSkipped, isOk, status }) => {
+        const wrongKeys = Object.keys(q.options).filter(k => !ck.has(k))
+        return (
+          <div key={i} className={`scroll-item review-item-${status}`}>
+            <div className="question-meta">
+              <span className={`badge badge-status-${status}`}>
+                {isSkipped ? '⏭ Bỏ qua' : isOk ? '✓ Đúng' : '✗ Sai'}
+              </span>
+              {q.category && <span className="badge badge-cat">{q.category}</span>}
+              {q.difficulty && <span className={`badge badge-${q.difficulty}`}>{q.difficulty}</span>}
+              {scoreMode === 'point' && <span className="badge badge-point">{isOk ? getPoint(q, pointMode, customPoints) : 0}/{getPoint(q, pointMode, customPoints)} điểm</span>}
+              <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--text3)' }}>#{i + 1}</span>
+            </div>
+
+            <div className="question-card">
+              <p className="question-text">{q.question}</p>
+              {q.code && (
+                <pre className="code-block">
+                  {q.code_lang && <span className="code-lang">{q.code_lang}</span>}
+                  <code>{q.code}</code>
+                </pre>
+              )}
+            </div>
+
+            <div className="options-list">
+              {Object.entries(q.options).map(([key, val]) => {
+                let cls = ''
+                if (ck.has(key) && ans.has(key)) cls = 'correct'
+                else if (!ck.has(key) && ans.has(key)) cls = 'wrong'
+                else if (ck.has(key)) cls = 'reveal-correct'
+                return (
+                  <div key={key} className={`option-item ${cls} disabled`}>
+                    <span className="option-key">{key}</span>
+                    <span className="option-text">{val}</span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="explanation-box">
+              <h4>Giải thích</h4>
+              <p>
+                <strong>The Correct Answer:</strong> {[...ck].map(k => q.options[k]).join('; ')}.
+                {q.explanation ? ` ${q.explanation}` : ''}
+                {wrongKeys.length > 0 && (
+                  <> <strong>The Incorrect Answers:</strong> {wrongKeys.map(k => q.options[k]).join('; ')}.</>
+                )}
+              </p>
+            </div>
+
+            {q.category && (
+              <p className="review-domain">Lĩnh vực: {q.category}{q.subcategory ? ` / ${q.subcategory}` : ''}</p>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ScrollView({
+  questions, answers, revealed, revealMode, allDone, locked,
+  scoreMode, pointMode, customPoints,
+  toggleOptionAt, getOptionClassAt, confirmAt, skipAt, onSubmit,
+}) {
+  const allAnswered = questions.every((_, i) => !!revealed[i])
+
+  return (
+    <div className="scroll-view">
+      {questions.map((q, i) => {
+        const isMulti = q.type === 'multiple_choice'
+        const sel = answers[i] ?? new Set()
+        const answeredQ = !!revealed[i]
+        const showAnswer = (revealMode === 'instant' && answeredQ) || allDone
+
+        return (
+          <div key={i} className="scroll-item">
+            <div className="question-meta">
+              {q.category && <span className="badge badge-cat">{q.category}</span>}
+              {q.difficulty && <span className={`badge badge-${q.difficulty}`}>{q.difficulty}</span>}
+              {isMulti && <span className="badge badge-multi">Nhiều đáp án</span>}
+              {scoreMode === 'point' && <span className="badge badge-point">{getPoint(q, pointMode, customPoints)} điểm</span>}
+              <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--text3)' }}>#{i + 1}</span>
+            </div>
+
+            <div className="question-card">
+              <p className="question-text">{q.question}</p>
+              {q.code && (
+                <pre className="code-block">
+                  {q.code_lang && <span className="code-lang">{q.code_lang}</span>}
+                  <code>{q.code}</code>
+                </pre>
+              )}
+            </div>
+
+            {isMulti && !answeredQ && <p className="multi-hint">Chọn tất cả đáp án đúng rồi bấm Xác nhận</p>}
+
+            <div className="options-list">
+              {Object.entries(q.options).map(([key, val]) => (
+                <div key={key}
+                  className={`option-item ${getOptionClassAt(i, key)} ${answeredQ || locked ? 'disabled' : ''}`}
+                  onClick={() => toggleOptionAt(i, key)}
+                >
+                  <span className="option-key">{key}</span>
+                  <span className="option-text">{val}</span>
+                </div>
+              ))}
+            </div>
+
+            {showAnswer && q.explanation && (
+              <div className="explanation-box">
+                <h4>Giải thích</h4>
+                <p>{q.explanation}</p>
+              </div>
+            )}
+
+            {!locked && !answeredQ && (
+              <div className="nav-row">
+                <div className="nav-right">
+                  <button className="btn btn-ghost" onClick={() => skipAt(i)}>Bỏ qua</button>
+                  <button className="btn btn-primary" onClick={() => confirmAt(i)} disabled={!sel.size}>Xác nhận</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {!locked && (
+        <button className="btn btn-primary submit-all-btn" onClick={onSubmit} disabled={!allAnswered}>
+          {allAnswered ? 'Nộp bài 🏁' : `Còn ${questions.filter((_, i) => !revealed[i]).length} câu chưa trả lời`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ImportedResultModal({ snapshot, onClose }) {
+  const [filter, setFilter] = useState('all')
+  const { questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, savedAt } = snapshot
+
+  const totalCorrect = questions.filter((qq, i) => isCorrect(qq, answers[i])).length
+  const totalSkipped = questions.filter((_, i) => !(answers[i]?.size)).length
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box imported-result-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>📂 Kết quả đã lưu</h3>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="imported-meta">
+            {sourceNames?.length > 0 && <div>File nguồn: <strong>{sourceNames.join(', ')}</strong></div>}
+            <div>Làm lúc: <strong>{new Date(savedAt).toLocaleString('vi-VN')}</strong></div>
+            <div>
+              Điểm: <strong style={{ color: passed ? 'var(--success)' : 'var(--danger)' }}>{pct}%</strong>
+              {' — '}{passed ? 'Đạt' : 'Không đạt'} (ngưỡng {passPct}%)
+              {' · '}{totalCorrect} đúng · {questions.length - totalCorrect - totalSkipped} sai · {totalSkipped} bỏ qua
+            </div>
+          </div>
+
+          <div className="review-filter">
+            <button className={`review-filter-btn${filter === 'all' ? ' active' : ''}`} onClick={() => setFilter('all')}>
+              Tất cả <span className="review-filter-count">{questions.length}</span>
+            </button>
+            <button className={`review-filter-btn filter-correct${filter === 'correct' ? ' active' : ''}`} onClick={() => setFilter('correct')}>
+              Đúng <span className="review-filter-count">{totalCorrect}</span>
+            </button>
+            <button className={`review-filter-btn filter-wrong${filter === 'wrong' ? ' active' : ''}`} onClick={() => setFilter('wrong')}>
+              Sai <span className="review-filter-count">{questions.length - totalCorrect - totalSkipped}</span>
+            </button>
+            <button className={`review-filter-btn filter-skipped${filter === 'skipped' ? ' active' : ''}`} onClick={() => setFilter('skipped')}>
+              Bỏ qua <span className="review-filter-count">{totalSkipped}</span>
+            </button>
+          </div>
+
+          <ReviewScrollView
+            questions={questions}
+            answers={answers}
+            reviewFilter={filter}
+            scoreMode={scoreMode}
+            pointMode={pointMode}
+            customPoints={customPoints}
+          />
         </div>
       </div>
     </div>

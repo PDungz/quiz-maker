@@ -149,6 +149,16 @@ body {
   border-color: var(--accent); color: var(--text);
 }
 
+.import-result-btn {
+  display: block; width: 100%; text-align: center;
+  padding: 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface2);
+  font-size: 0.8rem; font-weight: 600; color: var(--text2);
+  cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  margin-bottom: 8px;
+}
+.import-result-btn:hover { border-color: var(--accent); color: var(--text); }
+
 /* file list */
 .file-list { margin-bottom: 12px; }
 .file-item {
@@ -252,6 +262,39 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 .point-item { display: flex; align-items: center; gap: 8px; }
 .point-item input[type=number] { width: 70px; }
 
+/* view toggle */
+.view-toggle {
+  display: flex; gap: 4px; margin-bottom: 18px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 3px; width: fit-content;
+}
+.view-toggle-btn {
+  background: none; border: none; cursor: pointer;
+  padding: 6px 14px; border-radius: 5px;
+  font-size: 0.78rem; font-weight: 600; color: var(--text2);
+  transition: background 0.15s, color 0.15s;
+}
+.view-toggle-btn.active { background: var(--accent); color: var(--accent-text); }
+
+/* scroll view */
+.scroll-view { display: flex; flex-direction: column; gap: 10px; }
+.scroll-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 4px;
+}
+.scroll-item .question-card { background: none; border: none; padding: 0; margin-bottom: 10px; }
+.scroll-item.review-item-correct { border-left: 3px solid var(--success); }
+.scroll-item.review-item-wrong { border-left: 3px solid var(--danger); }
+.scroll-item.review-item-skipped { border-left: 3px solid var(--text3); }
+.review-domain {
+  margin-top: 10px; font-size: 0.78rem; color: var(--text3);
+  border-top: 1px solid var(--border); padding-top: 10px;
+}
+.submit-all-btn { width: 100%; margin-top: 8px; padding: 14px; font-size: 0.95rem; }
+
+/* export button */
+.export-btn { width: 100%; margin-top: 10px; }
+
 /* timer bar */
 .timer-bar {
   display: flex; align-items: center; gap: 10px;
@@ -335,6 +378,9 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 .badge-multi { color: var(--accent2); }
 .badge-id { color: var(--text3); }
 .badge-point { color: var(--warning); border-color: var(--warning); }
+.badge-status-correct { color: var(--success); border-color: var(--success); }
+.badge-status-wrong { color: var(--danger); border-color: var(--danger); }
+.badge-status-skipped { color: var(--text3); }
 
 .question-card {
   background: var(--surface); border: 1px solid var(--border);
@@ -412,6 +458,29 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;
   color: var(--text3); font-weight: 600;
 }
+.review-filter {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 3px;
+  margin-bottom: 18px;
+}
+.review-filter-btn {
+  background: none; border: none; cursor: pointer;
+  padding: 5px 10px; border-radius: 5px;
+  font-size: 0.75rem; font-weight: 600; color: var(--text2);
+  display: flex; align-items: center; gap: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+.review-filter-count {
+  font-size: 0.68rem; opacity: 0.7; background: var(--border);
+  border-radius: 10px; padding: 1px 6px;
+}
+.review-filter-btn.active { background: var(--accent); color: var(--accent-text); }
+.review-filter-btn.active .review-filter-count { background: rgba(0,0,0,0.15); }
+.review-filter-btn.filter-correct.active { background: var(--success); }
+.review-filter-btn.filter-wrong.active { background: var(--danger); }
+.review-filter-btn.filter-skipped.active { background: var(--text3); }
+
 .review-list { display: flex; flex-direction: column; gap: 10px; }
 .review-item {
   background: var(--surface); border: 1px solid var(--border);
@@ -450,6 +519,13 @@ pre {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); max-width: 640px; width: 100%;
   max-height: 85vh; display: flex; flex-direction: column;
+}
+.imported-result-box { max-width: 760px; }
+.imported-meta {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  margin-bottom: 16px; font-size: 0.82rem; color: var(--text2);
+  display: flex; flex-direction: column; gap: 4px;
 }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
