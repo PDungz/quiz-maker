@@ -146,6 +146,18 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [viewMode, setViewMode] = useState('single') // 'single' | 'scroll'
   const [reviewFilter, setReviewFilter] = useState('all') // 'all' | 'correct' | 'wrong' | 'skipped'
+  const [highlightIndex, setHighlightIndex] = useState(null)
+  const [selectedDotIndex, setSelectedDotIndex] = useState(null)
+
+  const goToReviewQuestion = (i) => {
+    setReviewFilter('all')
+    setHighlightIndex(i)
+    setSelectedDotIndex(i)
+    requestAnimationFrame(() => {
+      document.getElementById(`review-q-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    setTimeout(() => setHighlightIndex(cur => cur === i ? null : cur), 2000)
+  }
 
   const [allQuestions, setAllQuestions] = useState([])
   const [files, setFiles] = useState([])
@@ -233,7 +245,7 @@ export default function App() {
   const resetQuiz = () => {
     setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
-    setReviewFilter('all')
+    setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null)
   }
 
   const buildQuiz = () => {
@@ -244,7 +256,7 @@ export default function App() {
     setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
-    setReviewFilter('all')
+    setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null)
   }
 
   const toggleCat = (cat) =>
@@ -258,6 +270,9 @@ export default function App() {
       const next = { ...prev }
       questions.forEach((_, i) => { if (!next[i]) next[i] = true })
       return next
+    })
+    requestAnimationFrame(() => {
+      document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
     })
   }
 
@@ -278,6 +293,9 @@ export default function App() {
       const next = { ...prev }
       questions.forEach((_, i) => { if (!next[i]) next[i] = true })
       return next
+    })
+    requestAnimationFrame(() => {
+      document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
     })
   }, [timerEnabled, timerStarted, timeUp, submitted, secondsLeft, questions])
 
@@ -347,6 +365,10 @@ export default function App() {
   const poolSize = allQuestions.filter(q => selectedCats.length === 0 || selectedCats.includes(q.category)).length
 
   const needsStart = timerEnabled && questions.length > 0 && !timerStarted && !allDone
+
+  if (importedResult) {
+    return <ImportedResultPage snapshot={importedResult} onClose={() => setImportedResult(null)} />
+  }
 
   return (
     <div className="app-layout">
@@ -422,6 +444,7 @@ export default function App() {
               scoreMode={scoreMode}
               pointMode={pointMode}
               customPoints={customPoints}
+              highlightIndex={highlightIndex}
             />
           </>
         ) : viewMode === 'scroll' ? (
@@ -689,10 +712,11 @@ export default function App() {
                 const ok = canShowResult && ans.size > 0 && ans.size === ck.size && [...ans].every(k => ck.has(k))
                 const bad = canShowResult && !ok
                 const pending = wasAnswered && !canShowResult
+                const isActive = allDone ? i === selectedDotIndex : i === current
                 return (
                   <div key={i}
-                    className={`nav-dot${i === current ? ' active' : ''}${ok ? ' dot-correct' : ''}${bad ? ' dot-wrong' : ''}${pending ? ' dot-answered' : ''}`}
-                    onClick={() => { setCurrent(i); window.scrollTo(0, 0) }}
+                    className={`nav-dot${isActive ? ' active' : ''}${ok ? ' dot-correct' : ''}${bad ? ' dot-wrong' : ''}${pending ? ' dot-answered' : ''}`}
+                    onClick={() => allDone ? goToReviewQuestion(i) : (setCurrent(i), window.scrollTo(0, 0))}
                   >{i + 1}</div>
                 )
               })}
@@ -730,7 +754,6 @@ export default function App() {
       </aside>
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      {importedResult && <ImportedResultModal snapshot={importedResult} onClose={() => setImportedResult(null)} />}
     </div>
   )
 }
@@ -931,7 +954,7 @@ function HelpModal({ onClose }) {
   )
 }
 
-function ReviewScrollView({ questions, answers, reviewFilter, scoreMode, pointMode, customPoints }) {
+function ReviewScrollView({ questions, answers, reviewFilter, scoreMode, pointMode, customPoints, highlightIndex }) {
   const items = questions.map((q, i) => {
     const ans = answers[i] ?? new Set()
     const ck = new Set(q.correct_answer)
@@ -951,7 +974,7 @@ function ReviewScrollView({ questions, answers, reviewFilter, scoreMode, pointMo
       {filtered.map(({ q, i, ans, ck, isSkipped, isOk, status }) => {
         const wrongKeys = Object.keys(q.options).filter(k => !ck.has(k))
         return (
-          <div key={i} className={`scroll-item review-item-${status}`}>
+          <div key={i} id={`review-q-${i}`} className={`scroll-item review-item-${status}${i === highlightIndex ? ' highlighted' : ''}`}>
             <div className="question-meta">
               <span className={`badge badge-status-${status}`}>
                 {isSkipped ? '⏭ Bỏ qua' : isOk ? '✓ Đúng' : '✗ Sai'}
@@ -1085,22 +1108,36 @@ function ScrollView({
   )
 }
 
-function ImportedResultModal({ snapshot, onClose }) {
+function ImportedResultPage({ snapshot, onClose }) {
   const [filter, setFilter] = useState('all')
+  const [highlightIndex, setHighlightIndex] = useState(null)
+  const [selectedDotIndex, setSelectedDotIndex] = useState(null)
   const { questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, savedAt } = snapshot
 
   const totalCorrect = questions.filter((qq, i) => isCorrect(qq, answers[i])).length
   const totalSkipped = questions.filter((_, i) => !(answers[i]?.size)).length
 
+  const maxPoint = questions.reduce((sum, qq) => sum + getPoint(qq, pointMode, customPoints), 0)
+  const earnedPoint = questions.reduce((sum, qq, i) => sum + (isCorrect(qq, answers[i]) ? getPoint(qq, pointMode, customPoints) : 0), 0)
+
+  const goToQuestion = (i) => {
+    setFilter('all')
+    setHighlightIndex(i)
+    setSelectedDotIndex(i)
+    requestAnimationFrame(() => {
+      document.getElementById(`review-q-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    setTimeout(() => setHighlightIndex(cur => cur === i ? null : cur), 2000)
+  }
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box imported-result-box" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>📂 Kết quả đã lưu</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="modal-body">
+    <div className="app-layout">
+      <main className="main-content">
+        <div className="main-inner">
           <div className="imported-meta">
+            <div className="imported-meta-head">
+              <h3 style={{ margin: 0 }}>📂 Kết quả đã lưu</h3>
+            </div>
             {sourceNames?.length > 0 && <div>File nguồn: <strong>{sourceNames.join(', ')}</strong></div>}
             <div>Làm lúc: <strong>{new Date(savedAt).toLocaleString('vi-VN')}</strong></div>
             <div>
@@ -1132,9 +1169,52 @@ function ImportedResultModal({ snapshot, onClose }) {
             scoreMode={scoreMode}
             pointMode={pointMode}
             customPoints={customPoints}
+            highlightIndex={highlightIndex}
           />
         </div>
-      </div>
+      </main>
+
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo">📝</div>
+          <div className="sidebar-title">Quiz</div>
+          <button className="help-btn" title="Đóng kết quả đã lưu" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="nav-section">
+          <div className="config-label">
+            Câu hỏi <span style={{ color: passed ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{pct}%</span>
+          </div>
+          <div className="sidebar-nav">
+            {questions.map((q, i) => {
+              const ans = answers[i] ?? new Set()
+              const isSkipped = !ans.size
+              const ok = !isSkipped && isCorrect(q, ans)
+              return (
+                <div key={i}
+                  className={`nav-dot${i === selectedDotIndex ? ' active' : ''}${ok ? ' dot-correct' : isSkipped ? ' dot-answered' : ' dot-wrong'}`}
+                  onClick={() => goToQuestion(i)}
+                >{i + 1}</div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="result-mini">
+          <div style={{ fontSize: '2rem', fontWeight: 800, color: passed ? 'var(--success)' : 'var(--danger)' }}>{pct}%</div>
+          <div className={`pass-tag ${passed ? 'pass' : 'fail'}`}>{passed ? '✓ Đạt' : '✗ Không đạt'} (ngưỡng {passPct}%)</div>
+          {scoreMode === 'point' && (
+            <div style={{ fontSize: '0.78rem', color: 'var(--text3)', marginTop: 2 }}>{earnedPoint} / {maxPoint} điểm</div>
+          )}
+          <div style={{ fontSize: '0.82rem', color: 'var(--text2)', marginTop: 4 }}>
+            <span style={{ color: 'var(--success)' }}>{totalCorrect} đúng</span>
+            {' · '}
+            <span style={{ color: 'var(--danger)' }}>{questions.length - totalCorrect - totalSkipped} sai</span>
+            {' · '}
+            <span style={{ color: 'var(--text3)' }}>{totalSkipped} bỏ qua</span>
+          </div>
+        </div>
+      </aside>
     </div>
   )
 }
