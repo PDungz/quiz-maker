@@ -150,7 +150,6 @@ export default function App() {
   const [selectedDotIndex, setSelectedDotIndex] = useState(null)
 
   const goToReviewQuestion = (i) => {
-    setReviewFilter('all')
     setHighlightIndex(i)
     setSelectedDotIndex(i)
     requestAnimationFrame(() => {
@@ -709,9 +708,16 @@ export default function App() {
                 const wasAnswered = !!revealed[i]
                 const canShowResult = wasAnswered && (revealMode === 'instant' || allDone)
                 const ck = new Set(questions[i].correct_answer)
-                const ok = canShowResult && ans.size > 0 && ans.size === ck.size && [...ans].every(k => ck.has(k))
-                const bad = canShowResult && !ok
+                const isSkipped = !ans.size
+                const ok = canShowResult && !isSkipped && ans.size === ck.size && [...ans].every(k => ck.has(k))
+                const bad = canShowResult && !isSkipped && !ok
                 const pending = wasAnswered && !canShowResult
+
+                if (allDone && reviewFilter !== 'all') {
+                  const status = isSkipped ? 'skipped' : ok ? 'correct' : 'wrong'
+                  if (status !== reviewFilter) return null
+                }
+
                 const isActive = allDone ? i === selectedDotIndex : i === current
                 return (
                   <div key={i}
@@ -1121,7 +1127,6 @@ function ImportedResultPage({ snapshot, onClose }) {
   const earnedPoint = questions.reduce((sum, qq, i) => sum + (isCorrect(qq, answers[i]) ? getPoint(qq, pointMode, customPoints) : 0), 0)
 
   const goToQuestion = (i) => {
-    setFilter('all')
     setHighlightIndex(i)
     setSelectedDotIndex(i)
     requestAnimationFrame(() => {
@@ -1190,6 +1195,12 @@ function ImportedResultPage({ snapshot, onClose }) {
               const ans = answers[i] ?? new Set()
               const isSkipped = !ans.size
               const ok = !isSkipped && isCorrect(q, ans)
+
+              if (filter !== 'all') {
+                const status = isSkipped ? 'skipped' : ok ? 'correct' : 'wrong'
+                if (status !== filter) return null
+              }
+
               return (
                 <div key={i}
                   className={`nav-dot${i === selectedDotIndex ? ' active' : ''}${ok ? ' dot-correct' : isSkipped ? ' dot-answered' : ' dot-wrong'}`}
