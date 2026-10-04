@@ -148,6 +148,7 @@ export default function App() {
   const [reviewFilter, setReviewFilter] = useState('all') // 'all' | 'correct' | 'wrong' | 'skipped'
   const [highlightIndex, setHighlightIndex] = useState(null)
   const [selectedDotIndex, setSelectedDotIndex] = useState(null)
+  const [retrySelection, setRetrySelection] = useState(() => new Set())
 
   const goToReviewQuestion = (i) => {
     setHighlightIndex(i)
@@ -156,6 +157,14 @@ export default function App() {
       document.getElementById(`review-q-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
     setTimeout(() => setHighlightIndex(cur => cur === i ? null : cur), 2000)
+  }
+
+  const toggleRetrySelect = (i) => {
+    setRetrySelection(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
   }
 
   const [allQuestions, setAllQuestions] = useState([])
@@ -244,7 +253,7 @@ export default function App() {
   const resetQuiz = () => {
     setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
-    setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null)
+    setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
   }
 
   const buildQuiz = () => {
@@ -255,11 +264,24 @@ export default function App() {
     setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
-    setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null)
+    setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
   }
 
   const toggleCat = (cat) =>
     setSelectedCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
+
+  const startRetry = (subset) => {
+    if (!subset.length) return
+    const pool = mode === 'shuffle' || mode === 'random' ? shuffle(subset) : subset
+    setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
+    setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
+    setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
+    setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
+    setImportedResult(null)
+    requestAnimationFrame(() => {
+      document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  }
 
   const startTimer = () => { setTimerStarted(true); setTimerPaused(false) }
   const togglePause = () => setTimerPaused(p => !p)
@@ -366,7 +388,7 @@ export default function App() {
   const needsStart = timerEnabled && questions.length > 0 && !timerStarted && !allDone
 
   if (importedResult) {
-    return <ImportedResultPage snapshot={importedResult} onClose={() => setImportedResult(null)} />
+    return <ImportedResultPage snapshot={importedResult} onClose={() => setImportedResult(null)} onRetry={startRetry} />
   }
 
   return (
@@ -444,7 +466,15 @@ export default function App() {
               pointMode={pointMode}
               customPoints={customPoints}
               highlightIndex={highlightIndex}
+              selectedSet={retrySelection}
+              onToggleSelect={toggleRetrySelect}
             />
+            {retrySelection.size > 0 && (
+              <button
+                className="btn btn-primary retry-selected-btn"
+                onClick={() => startRetry(questions.filter((_, i) => retrySelection.has(i)))}
+              >🔁 Làm lại {retrySelection.size} câu đã chọn</button>
+            )}
           </>
         ) : viewMode === 'scroll' ? (
           <ScrollView
@@ -745,6 +775,12 @@ export default function App() {
               {' · '}
               <span style={{ color: 'var(--text3)' }}>{totalSkipped} bỏ qua</span>
             </div>
+            {(questions.length - totalCorrect) > 0 && (
+              <button
+                className="btn btn-ghost retry-wrong-btn"
+                onClick={() => startRetry(questions.filter((qq, i) => !isCorrect(qq, answers[i])))}
+              >🔁 Làm lại {questions.length - totalCorrect} câu sai + bỏ qua</button>
+            )}
             <button
               className="btn btn-ghost export-btn"
               onClick={() => {
@@ -960,7 +996,7 @@ function HelpModal({ onClose }) {
   )
 }
 
-function ReviewScrollView({ questions, answers, reviewFilter, scoreMode, pointMode, customPoints, highlightIndex }) {
+function ReviewScrollView({ questions, answers, reviewFilter, scoreMode, pointMode, customPoints, highlightIndex, selectedSet, onToggleSelect }) {
   const items = questions.map((q, i) => {
     const ans = answers[i] ?? new Set()
     const ck = new Set(q.correct_answer)
@@ -982,6 +1018,11 @@ function ReviewScrollView({ questions, answers, reviewFilter, scoreMode, pointMo
         return (
           <div key={i} id={`review-q-${i}`} className={`scroll-item review-item-${status}${i === highlightIndex ? ' highlighted' : ''}`}>
             <div className="question-meta">
+              {onToggleSelect && (
+                <label className="retry-checkbox" onClick={e => e.stopPropagation()}>
+                  <input type="checkbox" checked={selectedSet?.has(i) ?? false} onChange={() => onToggleSelect(i)} />
+                </label>
+              )}
               <span className={`badge badge-status-${status}`}>
                 {isSkipped ? '⏭ Bỏ qua' : isOk ? '✓ Đúng' : '✗ Sai'}
               </span>
@@ -1114,11 +1155,20 @@ function ScrollView({
   )
 }
 
-function ImportedResultPage({ snapshot, onClose }) {
+function ImportedResultPage({ snapshot, onClose, onRetry }) {
   const [filter, setFilter] = useState('all')
   const [highlightIndex, setHighlightIndex] = useState(null)
   const [selectedDotIndex, setSelectedDotIndex] = useState(null)
+  const [retrySelection, setRetrySelection] = useState(() => new Set())
   const { questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, savedAt } = snapshot
+
+  const toggleRetrySelect = (i) => {
+    setRetrySelection(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
 
   const totalCorrect = questions.filter((qq, i) => isCorrect(qq, answers[i])).length
   const totalSkipped = questions.filter((_, i) => !(answers[i]?.size)).length
@@ -1175,7 +1225,15 @@ function ImportedResultPage({ snapshot, onClose }) {
             pointMode={pointMode}
             customPoints={customPoints}
             highlightIndex={highlightIndex}
+            selectedSet={retrySelection}
+            onToggleSelect={toggleRetrySelect}
           />
+          {retrySelection.size > 0 && (
+            <button
+              className="btn btn-primary retry-selected-btn"
+              onClick={() => onRetry(questions.filter((_, i) => retrySelection.has(i)))}
+            >🔁 Làm lại {retrySelection.size} câu đã chọn</button>
+          )}
         </div>
       </main>
 
@@ -1224,6 +1282,12 @@ function ImportedResultPage({ snapshot, onClose }) {
             {' · '}
             <span style={{ color: 'var(--text3)' }}>{totalSkipped} bỏ qua</span>
           </div>
+          {(questions.length - totalCorrect) > 0 && (
+            <button
+              className="btn btn-ghost retry-wrong-btn"
+              onClick={() => onRetry(questions.filter((qq, i) => !isCorrect(qq, answers[i])))}
+            >🔁 Làm lại {questions.length - totalCorrect} câu sai + bỏ qua</button>
+          )}
         </div>
       </aside>
     </div>

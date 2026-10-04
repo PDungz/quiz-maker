@@ -299,6 +299,14 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 
 /* export button */
 .export-btn { width: 100%; margin-top: 10px; }
+.retry-wrong-btn { width: 100%; margin-top: 8px; }
+.retry-selected-btn { width: 100%; margin-top: 14px; }
+.retry-checkbox {
+  display: flex; align-items: center; cursor: pointer;
+}
+.retry-checkbox input[type=checkbox] {
+  width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer;
+}
 
 /* timer bar */
 .timer-bar {
