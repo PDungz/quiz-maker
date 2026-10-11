@@ -204,7 +204,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- finalizeSubmit is stable per-render and intentionally omitted to avoid re-running on every answer change
   }, [timerEnabled, timerStarted, timeUp, submitted, secondsLeft])
 
-  const allDone = questions.length > 0 && (submitted || questions.every((_, i) => !!revealed[i]))
+  const allDone = questions.length > 0 && submitted
 
   const q = questions[current]
   const isMulti = q?.type === 'multiple_choice'
@@ -670,7 +670,12 @@ export default function App() {
             {elapsedSeconds != null && (
               <div className="time-taken">
                 ⏱ Làm trong {formatDuration(elapsedSeconds)}
-                {timerEnabled && ` / giới hạn ${timerMinutes} phút`}
+                {timerEnabled && ` (${Math.ceil(elapsedSeconds / 60)}/${timerMinutes} phút)`}
+                {startedAt && (
+                  <div>
+                    {new Date(startedAt).toLocaleTimeString('vi-VN')} — {new Date(startedAt + elapsedSeconds * 1000).toLocaleTimeString('vi-VN')}
+                  </div>
+                )}
               </div>
             )}
             {(questions.length - totalCorrect) > 0 && (
@@ -683,7 +688,7 @@ export default function App() {
               className="btn btn-ghost export-btn"
               onClick={() => {
                 const sourceNames = files.map(f => f.name)
-                const { content, now } = buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes)
+                const { content, now } = buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt)
                 const baseName = sourceNames.length === 1 ? slugifyFilename(sourceNames[0]) : sourceNames.length > 1 ? 'nhieu-file' : 'quiz'
                 downloadTextFile(`ket-qua_${baseName}_${formatTimestampForFilename(now)}.md`, content)
               }}

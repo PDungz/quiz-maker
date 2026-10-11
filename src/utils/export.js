@@ -14,7 +14,7 @@ export function formatTimestampForFilename(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`
 }
 
-export function buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes) {
+export function buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt) {
   const now = new Date()
   const lines = []
   lines.push(`# Kết quả bài làm — Quiz Maker`)
@@ -23,7 +23,13 @@ export function buildExportMarkdown(questions, answers, scoreMode, pointMode, cu
   lines.push(`Ngày làm: ${now.toLocaleString('vi-VN')}`)
   lines.push(`Điểm: ${pct}% — ${passed ? 'Đạt' : 'Không đạt'} (ngưỡng ${passPct}%)`)
   if (elapsedSeconds != null) {
-    lines.push(`Thời gian làm: ${formatDuration(elapsedSeconds)}${timerEnabled ? ` / giới hạn ${timerMinutes} phút` : ''}`)
+    const usedMinutes = Math.ceil(elapsedSeconds / 60)
+    lines.push(`Thời gian làm: ${formatDuration(elapsedSeconds)}${timerEnabled ? ` (${usedMinutes}/${timerMinutes} phút)` : ''}`)
+    if (startedAt) {
+      const startDate = new Date(startedAt)
+      const endDate = new Date(startedAt + elapsedSeconds * 1000)
+      lines.push(`Bắt đầu: ${startDate.toLocaleTimeString('vi-VN')} — Kết thúc: ${endDate.toLocaleTimeString('vi-VN')}`)
+    }
   }
   if (scoreMode === 'point') {
     const maxPoint = questions.reduce((sum, qq) => sum + getPoint(qq, pointMode, customPoints), 0)
@@ -71,7 +77,7 @@ export function buildExportMarkdown(questions, answers, scoreMode, pointMode, cu
     savedAt: now.toISOString(),
     sourceNames: sourceNames ?? [],
     scoreMode, pointMode, customPoints, pct, passed, passPct,
-    elapsedSeconds: elapsedSeconds ?? null, timerEnabled: !!timerEnabled, timerMinutes: timerMinutes ?? null,
+    elapsedSeconds: elapsedSeconds ?? null, timerEnabled: !!timerEnabled, timerMinutes: timerMinutes ?? null, startedAt: startedAt ?? null,
     questions,
     answers: questions.map((_, i) => [...(answers[i] ?? new Set())]),
   }

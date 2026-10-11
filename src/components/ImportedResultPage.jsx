@@ -7,7 +7,7 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
   const [highlightIndex, setHighlightIndex] = useState(null)
   const [selectedDotIndex, setSelectedDotIndex] = useState(null)
   const [retrySelection, setRetrySelection] = useState(() => new Set())
-  const { questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, savedAt, elapsedSeconds, timerEnabled, timerMinutes } = snapshot
+  const { questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, savedAt, elapsedSeconds, timerEnabled, timerMinutes, startedAt } = snapshot
 
   const toggleRetrySelect = (i) => {
     setRetrySelection(prev => {
@@ -48,7 +48,13 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
               {' · '}{totalCorrect} đúng · {questions.length - totalCorrect - totalSkipped} sai · {totalSkipped} bỏ qua
             </div>
             {elapsedSeconds != null && (
-              <div>⏱ Làm trong {formatDuration(elapsedSeconds)}{timerEnabled && ` / giới hạn ${timerMinutes} phút`}</div>
+              <div>
+                ⏱ Làm trong {formatDuration(elapsedSeconds)}
+                {timerEnabled && ` (${Math.ceil(elapsedSeconds / 60)}/${timerMinutes} phút)`}
+                {startedAt && (
+                  <> · {new Date(startedAt).toLocaleTimeString('vi-VN')} — {new Date(startedAt + elapsedSeconds * 1000).toLocaleTimeString('vi-VN')}</>
+                )}
+              </div>
             )}
           </div>
 
@@ -132,6 +138,17 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
             {' · '}
             <span style={{ color: 'var(--text3)' }}>{totalSkipped} bỏ qua</span>
           </div>
+          {elapsedSeconds != null && (
+            <div className="time-taken">
+              ⏱ Làm trong {formatDuration(elapsedSeconds)}
+              {timerEnabled && ` (${Math.ceil(elapsedSeconds / 60)}/${timerMinutes} phút)`}
+              {startedAt && (
+                <div>
+                  {new Date(startedAt).toLocaleTimeString('vi-VN')} — {new Date(startedAt + elapsedSeconds * 1000).toLocaleTimeString('vi-VN')}
+                </div>
+              )}
+            </div>
+          )}
           {(questions.length - totalCorrect) > 0 && (
             <button
               className="btn btn-ghost retry-wrong-btn"
