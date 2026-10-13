@@ -74,6 +74,7 @@ export function buildExportMarkdown(questions, answers, scoreMode, pointMode, cu
   })
 
   const snapshot = {
+    kind: 'result',
     savedAt: now.toISOString(),
     sourceNames: sourceNames ?? [],
     scoreMode, pointMode, customPoints, pct, passed, passPct,
@@ -91,6 +92,64 @@ export function parseExportSnapshot(text) {
   if (!match) return null
   try {
     const snapshot = JSON.parse(match[1])
+    if (snapshot.kind && snapshot.kind !== 'result') return null
+    const answers = {}
+    snapshot.answers.forEach((keys, i) => { answers[i] = new Set(keys) })
+    return { ...snapshot, answers }
+  } catch {
+    return null
+  }
+}
+
+export function buildProgressMarkdown(opts) {
+  const {
+    questions, answers, revealed, current,
+    sourceNames, mode, useAll, limit,
+    timerEnabled, timerMinutes, examMode, secondsLeft, timerStarted, timerPaused,
+    revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious,
+    startedAt,
+  } = opts
+  const now = new Date()
+  const answeredCount = questions.filter((_, i) => !!revealed[i]).length
+
+  const lines = []
+  lines.push(`# Bài làm dang dở — Quiz Maker`)
+  lines.push('')
+  if (sourceNames?.length) lines.push(`File nguồn: ${sourceNames.join(', ')}`)
+  lines.push(`Lưu lúc: ${now.toLocaleString('vi-VN')}`)
+  lines.push(`Tiến độ: ${answeredCount}/${questions.length} câu đã trả lời`)
+  if (timerEnabled) lines.push(`Thời gian còn lại: ${formatDuration(secondsLeft)} / giới hạn ${timerMinutes} phút`)
+  lines.push('')
+  lines.push('File này dùng để nạp lại và làm tiếp — không phải file kết quả. Mở qua nút "📂 Mở bài đang làm dở" trong app.')
+  lines.push('')
+  lines.push('---')
+  lines.push('')
+
+  const snapshot = {
+    kind: 'progress',
+    savedAt: now.toISOString(),
+    sourceNames: sourceNames ?? [],
+    questions,
+    answers: questions.map((_, i) => [...(answers[i] ?? new Set())]),
+    revealed,
+    current,
+    mode, useAll, limit,
+    timerEnabled: !!timerEnabled, timerMinutes, examMode: !!examMode,
+    secondsLeft, timerStarted: !!timerStarted, timerPaused: !!timerPaused,
+    revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious: !!lockPrevious,
+    startedAt: startedAt ?? null,
+  }
+  lines.push(`<!-- QUIZ_MAKER_DATA\n${JSON.stringify(snapshot)}\n-->`)
+
+  return { content: lines.join('\n'), now }
+}
+
+export function parseProgressSnapshot(text) {
+  const match = text.match(/<!-- QUIZ_MAKER_DATA\n([\s\S]*?)\n-->/)
+  if (!match) return null
+  try {
+    const snapshot = JSON.parse(match[1])
+    if (snapshot.kind !== 'progress') return null
     const answers = {}
     snapshot.answers.forEach((keys, i) => { answers[i] = new Set(keys) })
     return { ...snapshot, answers }

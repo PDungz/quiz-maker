@@ -279,6 +279,9 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 }
 .view-toggle-btn.active { background: var(--accent); color: var(--accent-text); }
 
+/* save-progress bar (no timer running) */
+.progress-save-bar { margin-bottom: 18px; }
+
 /* scroll view */
 .scroll-view { display: flex; flex-direction: column; gap: 10px; }
 .scroll-item {

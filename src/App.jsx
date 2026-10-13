@@ -3,7 +3,7 @@ import { parseMarkdown } from './parser'
 import './App.css'
 import { shuffle, getPoint, isCorrect, formatTime, formatDuration } from './utils/quiz'
 import { getInitialTheme } from './utils/theme'
-import { slugifyFilename, formatTimestampForFilename, buildExportMarkdown, parseExportSnapshot, downloadTextFile } from './utils/export'
+import { slugifyFilename, formatTimestampForFilename, buildExportMarkdown, parseExportSnapshot, downloadTextFile, buildProgressMarkdown, parseProgressSnapshot } from './utils/export'
 import EmptyState from './components/EmptyState'
 import HelpModal from './components/HelpModal'
 import ConfirmSubmitModal from './components/ConfirmSubmitModal'
@@ -51,6 +51,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [importedResult, setImportedResult] = useState(null)
   const importResultRef = useRef()
+  const importProgressRef = useRef()
 
   const loadResultFile = (fileList) => {
     const file = fileList?.[0]
@@ -63,6 +64,60 @@ export default function App() {
         return
       }
       setImportedResult(snapshot)
+    }
+    reader.readAsText(file)
+  }
+
+  const loadProgressFile = (fileList) => {
+    const file = fileList?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = e => {
+      const snap = parseProgressSnapshot(e.target.result)
+      if (!snap) {
+        alert('File này không phải bài làm dang dở hợp lệ do Quiz Maker xuất ra.')
+        return
+      }
+      setImportedResult(null)
+      setAllQuestions(prev => {
+        const merged = [...prev]
+        snap.questions.forEach(q => { if (!merged.find(x => x.id && x.id === q.id)) merged.push(q) })
+        return merged
+      })
+      if (snap.sourceNames?.length) {
+        setFiles(prev => {
+          const names = new Set(prev.map(f => f.name))
+          const added = snap.sourceNames.filter(n => !names.has(n)).map(n => ({ name: n, count: 0 }))
+          return [...prev, ...added]
+        })
+      }
+      setQuestions(snap.questions)
+      setAnswers(snap.answers)
+      setRevealed(snap.revealed ?? {})
+      setCurrent(snap.current ?? 0)
+      setSubmitted(false)
+      setMode(snap.mode ?? 'shuffle')
+      setUseAll(snap.useAll ?? true)
+      setLimit(snap.limit ?? 20)
+      setTimerEnabled(!!snap.timerEnabled)
+      setTimerMinutes(snap.timerMinutes ?? 15)
+      setExamMode(!!snap.examMode)
+      setSecondsLeft(snap.secondsLeft ?? 0)
+      setTimerStarted(!!snap.timerStarted)
+      setTimerPaused(!!snap.timerPaused)
+      setTimeUp(false)
+      setRevealMode(snap.revealMode ?? 'instant')
+      setScoreMode(snap.scoreMode ?? 'count')
+      setPointMode(snap.pointMode ?? 'fixed')
+      setCustomPoints(snap.customPoints ?? { easy: 1, medium: 2, hard: 3 })
+      setPassPct(snap.passPct ?? 70)
+      setLockPrevious(!!snap.lockPrevious)
+      setStartedAt(snap.startedAt ?? null)
+      setElapsedSeconds(null)
+      setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
+      requestAnimationFrame(() => {
+        document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+      })
     }
     reader.readAsText(file)
   }
@@ -147,6 +202,7 @@ export default function App() {
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
+    // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records when the attempt actually started
     setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null)
   }
 
@@ -160,6 +216,7 @@ export default function App() {
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
+    // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records when the attempt actually started
     setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null)
     setImportedResult(null)
     requestAnimationFrame(() => {
@@ -167,15 +224,33 @@ export default function App() {
     })
   }
 
-  const startTimer = () => { setTimerStarted(true); setTimerPaused(false); setStartedAt(Date.now()) }
+  const startTimer = () => {
+    setTimerStarted(true); setTimerPaused(false)
+    // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records the real moment the user started
+    setStartedAt(Date.now())
+  }
   const togglePause = () => setTimerPaused(p => !p)
 
   const requestSubmit = () => setConfirmSubmit(true)
   const cancelSubmit = () => setConfirmSubmit(false)
   const confirmAndSubmit = () => { setConfirmSubmit(false); finalizeSubmit() }
 
+  const saveProgress = () => {
+    const sourceNames = files.map(f => f.name)
+    const { content, now } = buildProgressMarkdown({
+      questions, answers, revealed, current,
+      sourceNames, mode, useAll, limit,
+      timerEnabled, timerMinutes, examMode, secondsLeft, timerStarted, timerPaused,
+      revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious,
+      startedAt,
+    })
+    const baseName = sourceNames.length === 1 ? slugifyFilename(sourceNames[0]) : sourceNames.length > 1 ? 'nhieu-file' : 'quiz'
+    downloadTextFile(`dang-lam_${baseName}_${formatTimestampForFilename(now)}.md`, content)
+  }
+
   const finalizeSubmit = () => {
     setSubmitted(true)
+    // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records the real moment the quiz was submitted
     setElapsedSeconds(startedAt ? Math.round((Date.now() - startedAt) / 1000) : null)
     setRevealed(prev => {
       const next = { ...prev }
@@ -199,6 +274,7 @@ export default function App() {
     if (!timerEnabled || !timerStarted || timeUp || submitted || secondsLeft > 0) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing with an external countdown timer finishing
     setTimeUp(true)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- closing any open submit-confirm dialog once time is already up
     setConfirmSubmit(false)
     finalizeSubmit()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- finalizeSubmit is stable per-render and intentionally omitted to avoid re-running on every answer change
@@ -300,8 +376,17 @@ export default function App() {
                   {timerPaused ? '▶ Tiếp tục' : '⏸ Dừng'}
                 </button>
               )}
+              {!examMode && (
+                <button className="btn btn-ghost btn-sm" onClick={saveProgress}>💾 Lưu</button>
+              )}
               <button className="btn btn-danger btn-sm" onClick={requestSubmit}>Nộp bài</button>
             </div>
+          </div>
+        )}
+
+        {questions.length > 0 && !needsStart && !allDone && (!timerEnabled || !timerStarted) && (
+          <div className="progress-save-bar">
+            <button className="btn btn-ghost btn-sm" onClick={saveProgress}>💾 Lưu bài đang làm dở</button>
           </div>
         )}
 
@@ -495,6 +580,11 @@ export default function App() {
           📂 Mở lại kết quả đã lưu
           <input ref={importResultRef} type="file" accept=".md" style={{ display: 'none' }}
             onChange={e => { loadResultFile(e.target.files); e.target.value = '' }} />
+        </button>
+        <button className="import-result-btn" onClick={() => importProgressRef.current.click()}>
+          📥 Mở bài đang làm dở
+          <input ref={importProgressRef} type="file" accept=".md" style={{ display: 'none' }}
+            onChange={e => { loadProgressFile(e.target.files); e.target.value = '' }} />
         </button>
         <div className="help-link" onClick={() => setShowHelp(true)}>
           ℹ️ Xem hướng dẫn định dạng file .md
