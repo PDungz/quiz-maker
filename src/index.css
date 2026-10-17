@@ -45,16 +45,25 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { -webkit-text-size-adjust: 100%; }
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
   line-height: 1.6;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+img, svg { max-width: 100%; }
 
 /* ── Root layout ── */
 #root {
+  min-height: 100vh;
+}
+.app-layout {
   display: flex;
   min-height: 100vh;
 }
@@ -90,6 +99,8 @@ body {
   transition: border-color 0.15s, color 0.15s;
 }
 .sidebar-expand-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.sidebar-backdrop { display: none; }
 
 .collapse-btn {
   width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
@@ -170,6 +181,14 @@ body {
   text-overflow: ellipsis; white-space: nowrap; flex: 1;
 }
 .file-count { color: var(--text3); flex-shrink: 0; }
+.file-remove-btn {
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%;
+  background: none; border: none; color: var(--text3);
+  font-size: 0.65rem; cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.file-remove-btn:hover { color: var(--danger); background: var(--danger-bg); }
 .btn-clear {
   display: block; width: 100%; margin-top: 6px;
   background: none; border: 1px solid var(--border);
@@ -585,8 +604,9 @@ pre {
 }
 .modal-body pre { margin: 12px 0; font-size: 0.75rem; }
 .modal-body code { color: var(--text); }
+.table-scroll { overflow-x: auto; margin-top: 12px; }
 .help-table {
-  width: 100%; border-collapse: collapse; margin-top: 12px;
+  width: 100%; border-collapse: collapse;
   font-size: 0.78rem;
 }
 .help-table th, .help-table td {
@@ -607,9 +627,95 @@ pre {
 .copy-btn:hover { border-color: var(--accent2); color: var(--text); }
 .copy-btn.copied { border-color: var(--success); color: var(--success); }
 
+@media (max-width: 860px) {
+  :root { --sidebar-w: 320px; }
+}
+
 @media (max-width: 640px) {
-  .sidebar { position: static; width: 100%; border-right: none; border-bottom: 1px solid var(--border); transform: none; }
-  .sidebar.collapsed { display: none; }
-  #root { flex-direction: column; }
-  .main-content, .main-content.sidebar-collapsed { margin-left: 0; right: 0; padding: 20px 16px 60px; }
+  .app-layout { display: block; }
+
+  /* Sidebar becomes a slide-in drawer, hidden by default on mobile */
+  .sidebar {
+    width: min(86vw, 360px);
+    max-width: 360px;
+    border-left: 1px solid var(--border);
+    transform: translateX(100%);
+    z-index: 60;
+    box-shadow: -8px 0 24px rgba(0,0,0,0.35);
+  }
+  .sidebar:not(.collapsed) { transform: translateX(0); }
+  .sidebar.collapsed { transform: translateX(100%); }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 50;
+  }
+  .sidebar-backdrop.visible { display: block; }
+
+  .sidebar-expand-btn { display: flex; }
+
+  select, input[type=number], input[type=text] { font-size: 16px; }
+
+  .main-content, .main-content.sidebar-collapsed {
+    right: 0; margin-left: 0;
+    padding: 16px 14px 32px;
+  }
+  .main-inner { max-width: 100%; }
+
+  .sidebar-header { margin-bottom: 12px; padding-bottom: 10px; }
+  .theme-btn, .help-btn { width: 30px; height: 30px; }
+
+  .timer-bar {
+    top: 0; margin-bottom: 14px;
+    padding: 8px 12px; gap: 8px; flex-wrap: wrap;
+  }
+  .timer-time { font-size: 1.05rem; }
+  .timer-actions { gap: 6px; }
+
+  .view-toggle { width: 100%; }
+  .view-toggle-btn { flex: 1; padding: 8px 10px; }
+
+  .start-gate { padding: 48px 16px; }
+
+  .question-card { padding: 16px; }
+  .question-text { font-size: 0.95rem; }
+  .scroll-item { padding: 14px; }
+
+  .option-item { padding: 11px 12px; gap: 10px; }
+  .option-text { font-size: 0.85rem; }
+
+  .nav-row { flex-direction: column; align-items: stretch; }
+  .nav-row .nav-right { width: 100%; }
+  .nav-row .nav-right .btn { flex: 1; justify-content: center; }
+  .nav-row > .btn:first-child { width: 100%; }
+
+  .btn { padding: 10px 16px; }
+  .btn-sm { padding: 7px 12px; }
+
+  .sidebar-nav { gap: 6px; }
+  .nav-dot { width: 32px; height: 32px; font-size: 0.72rem; }
+
+  .review-filter { width: 100%; }
+  .review-filter-btn { flex: 1; justify-content: center; }
+
+  .modal-overlay { padding: 12px; align-items: flex-end; }
+  .modal-box {
+    max-width: 100%; width: 100%;
+    max-height: 90vh; border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .modal-header { padding: 14px 16px; }
+  .modal-body { padding: 16px; }
+  .confirm-submit-box { max-width: 100%; }
+  .confirm-actions { flex-direction: column-reverse; }
+  .confirm-actions .btn { width: 100%; justify-content: center; }
+
+  .help-table { font-size: 0.72rem; }
+  .help-table th, .help-table td { padding: 5px 6px; }
+}
+
+@media (max-width: 400px) {
+  .question-meta { gap: 4px; }
+  .badge { font-size: 0.64rem; padding: 2px 8px; }
+  .nav-dot { width: 28px; height: 28px; }
 }

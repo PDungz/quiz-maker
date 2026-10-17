@@ -107,7 +107,7 @@ export function buildProgressMarkdown(opts) {
     sourceNames, mode, useAll, limit,
     timerEnabled, timerMinutes, examMode, secondsLeft, timerStarted, timerPaused,
     revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious,
-    startedAt,
+    startedAt, pausedMs,
   } = opts
   const now = new Date()
   const answeredCount = questions.filter((_, i) => !!revealed[i]).length
@@ -137,7 +137,7 @@ export function buildProgressMarkdown(opts) {
     timerEnabled: !!timerEnabled, timerMinutes, examMode: !!examMode,
     secondsLeft, timerStarted: !!timerStarted, timerPaused: !!timerPaused,
     revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious: !!lockPrevious,
-    startedAt: startedAt ?? null,
+    startedAt: startedAt ?? null, pausedMs: pausedMs ?? 0,
   }
   lines.push(`<!-- QUIZ_MAKER_DATA\n${JSON.stringify(snapshot)}\n-->`)
 

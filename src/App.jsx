@@ -19,7 +19,7 @@ export default function App() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 640)
   const [viewMode, setViewMode] = useState('single') // 'single' | 'scroll'
   const [reviewFilter, setReviewFilter] = useState('all') // 'all' | 'correct' | 'wrong' | 'skipped'
   const [highlightIndex, setHighlightIndex] = useState(null)
@@ -114,6 +114,9 @@ export default function App() {
       setLockPrevious(!!snap.lockPrevious)
       setStartedAt(snap.startedAt ?? null)
       setElapsedSeconds(null)
+      setPausedMs(snap.pausedMs ?? 0)
+      // nếu lúc lưu đang dừng, tiếp tục đếm "dừng" từ bây giờ cho đến khi bấm Tiếp tục
+      setPauseStartedAt(snap.timerPaused ? Date.now() : null)
       setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
       requestAnimationFrame(() => {
         document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -153,6 +156,8 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false)
   const [startedAt, setStartedAt] = useState(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(null)
+  const [pausedMs, setPausedMs] = useState(0)
+  const [pauseStartedAt, setPauseStartedAt] = useState(null)
 
   const categories = [...new Set(allQuestions.map(q => q.category).filter(Boolean))]
 
@@ -165,7 +170,7 @@ export default function App() {
       if (!file.name.endsWith('.md')) return
       const reader = new FileReader()
       reader.onload = e => {
-        const qs = parseMarkdown(e.target.result)
+        const qs = parseMarkdown(e.target.result).map(q => ({ ...q, _sourceFile: file.name }))
         incoming.push(...qs)
         newFiles.push({ name: file.name, count: qs.length })
         if (--pending === 0) {
@@ -181,6 +186,11 @@ export default function App() {
     })
   }
 
+  const removeFile = (name) => {
+    setAllQuestions(prev => prev.filter(q => q._sourceFile !== name))
+    setFiles(prev => prev.filter(f => f.name !== name))
+  }
+
   const clearAll = () => {
     setAllQuestions([]); setFiles([])
     resetQuiz()
@@ -190,7 +200,7 @@ export default function App() {
     setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
-    setStartedAt(null); setElapsedSeconds(null)
+    setStartedAt(null); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
   }
 
   const buildQuiz = () => {
@@ -203,7 +213,7 @@ export default function App() {
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records when the attempt actually started
-    setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null)
+    setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
   }
 
   const toggleCat = (cat) =>
@@ -217,7 +227,7 @@ export default function App() {
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records when the attempt actually started
-    setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null)
+    setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
     setImportedResult(null)
     requestAnimationFrame(() => {
       document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -229,7 +239,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records the real moment the user started
     setStartedAt(Date.now())
   }
-  const togglePause = () => setTimerPaused(p => !p)
+  const togglePause = () => {
+    setTimerPaused(p => {
+      const next = !p
+      if (next) {
+        // bắt đầu dừng — ghi lại mốc thời gian
+        setPauseStartedAt(Date.now())
+      } else {
+        // tiếp tục — cộng dồn khoảng thời gian vừa dừng vào tổng
+        setPauseStartedAt(cur => {
+          if (cur) setPausedMs(ms => ms + (Date.now() - cur))
+          return null
+        })
+      }
+      return next
+    })
+  }
 
   const requestSubmit = () => setConfirmSubmit(true)
   const cancelSubmit = () => setConfirmSubmit(false)
@@ -237,12 +262,14 @@ export default function App() {
 
   const saveProgress = () => {
     const sourceNames = files.map(f => f.name)
+    // nếu đang dừng, chốt khoảng dừng hiện tại vào tổng trước khi lưu
+    const pausedMsAtSave = pauseStartedAt ? pausedMs + (Date.now() - pauseStartedAt) : pausedMs
     const { content, now } = buildProgressMarkdown({
       questions, answers, revealed, current,
       sourceNames, mode, useAll, limit,
       timerEnabled, timerMinutes, examMode, secondsLeft, timerStarted, timerPaused,
       revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious,
-      startedAt,
+      startedAt, pausedMs: pausedMsAtSave,
     })
     const baseName = sourceNames.length === 1 ? slugifyFilename(sourceNames[0]) : sourceNames.length > 1 ? 'nhieu-file' : 'quiz'
     downloadTextFile(`dang-lam_${baseName}_${formatTimestampForFilename(now)}.md`, content)
@@ -251,7 +278,9 @@ export default function App() {
   const finalizeSubmit = () => {
     setSubmitted(true)
     // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records the real moment the quiz was submitted
-    setElapsedSeconds(startedAt ? Math.round((Date.now() - startedAt) / 1000) : null)
+    const now = Date.now()
+    const openPauseMs = pauseStartedAt ? now - pauseStartedAt : 0
+    setElapsedSeconds(startedAt ? Math.max(0, Math.round((now - startedAt - pausedMs - openPauseMs) / 1000)) : null)
     setRevealed(prev => {
       const next = { ...prev }
       questions.forEach((_, i) => { if (!next[i]) next[i] = true })
@@ -542,6 +571,10 @@ export default function App() {
       </main>
 
       {/* ══ SIDEBAR: config bên phải ══ */}
+      <div
+        className={`sidebar-backdrop${sidebarCollapsed ? '' : ' visible'}`}
+        onClick={() => setSidebarCollapsed(true)}
+      />
       <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
 
         <div className="sidebar-header">
@@ -597,6 +630,7 @@ export default function App() {
               <div key={f.name} className="file-item">
                 <span className="file-name" title={f.name}>{f.name}</span>
                 <span className="file-count">{f.count} câu</span>
+                <button className="file-remove-btn" title="Xoá file này" onClick={() => removeFile(f.name)}>✕</button>
               </div>
             ))}
             <div className="file-total">Tổng cộng: <strong>{allQuestions.length} câu</strong></div>

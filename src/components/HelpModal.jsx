@@ -167,26 +167,28 @@ export default function HelpModal({ onClose }) {
 
           <p>Mỗi câu hỏi là một block nằm giữa hai dấu <code>---</code>. Các trường bắt buộc: <code>question</code>, <code>options</code>, <code>correct_answer</code>.</p>
 
-          <table className="help-table">
-            <thead>
-              <tr><th>Trường</th><th>Bắt buộc</th><th>Mô tả</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>id</td><td>Không</td><td>Định danh câu hỏi, vd <code>q1</code></td></tr>
-              <tr><td>category</td><td>Không</td><td>Chủ đề, vd <code>React</code></td></tr>
-              <tr><td>subcategory</td><td>Không</td><td>Chủ đề con</td></tr>
-              <tr><td>difficulty</td><td>Không</td><td><code>easy</code> / <code>medium</code> / <code>hard</code></td></tr>
-              <tr><td>type</td><td>Không</td><td><code>single_choice</code> hoặc <code>multiple_choice</code></td></tr>
-              <tr><td>question</td><td><strong>Có</strong></td><td>Nội dung câu hỏi</td></tr>
-              <tr><td>options</td><td><strong>Có</strong></td><td>Các lựa chọn dạng key-value</td></tr>
-              <tr><td>correct_answer</td><td><strong>Có</strong></td><td>Key đáp án đúng, vd <code>A</code> hoặc <code>[A, C]</code></td></tr>
-              <tr><td>code</td><td>Không</td><td>Đoạn code, dùng <code>|</code> để giữ format</td></tr>
-              <tr><td>code_lang</td><td>Không</td><td>Ngôn ngữ code, vd <code>dart</code></td></tr>
-              <tr><td>explanation</td><td>Không</td><td>Giải thích đáp án</td></tr>
-              <tr><td>tags</td><td>Không</td><td>Danh sách tag, vd <code>[react, hook]</code></td></tr>
-              <tr><td>point</td><td>Không</td><td>Điểm câu hỏi khi chấm theo thang điểm, vd <code>2</code>. Không set thì tự tính theo độ khó</td></tr>
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table className="help-table">
+              <thead>
+                <tr><th>Trường</th><th>Bắt buộc</th><th>Mô tả</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>id</td><td>Không</td><td>Định danh câu hỏi, vd <code>q1</code></td></tr>
+                <tr><td>category</td><td>Không</td><td>Chủ đề, vd <code>React</code></td></tr>
+                <tr><td>subcategory</td><td>Không</td><td>Chủ đề con</td></tr>
+                <tr><td>difficulty</td><td>Không</td><td><code>easy</code> / <code>medium</code> / <code>hard</code></td></tr>
+                <tr><td>type</td><td>Không</td><td><code>single_choice</code> hoặc <code>multiple_choice</code></td></tr>
+                <tr><td>question</td><td><strong>Có</strong></td><td>Nội dung câu hỏi</td></tr>
+                <tr><td>options</td><td><strong>Có</strong></td><td>Các lựa chọn dạng key-value</td></tr>
+                <tr><td>correct_answer</td><td><strong>Có</strong></td><td>Key đáp án đúng, vd <code>A</code> hoặc <code>[A, C]</code></td></tr>
+                <tr><td>code</td><td>Không</td><td>Đoạn code, dùng <code>|</code> để giữ format</td></tr>
+                <tr><td>code_lang</td><td>Không</td><td>Ngôn ngữ code, vd <code>dart</code></td></tr>
+                <tr><td>explanation</td><td>Không</td><td>Giải thích đáp án</td></tr>
+                <tr><td>tags</td><td>Không</td><td>Danh sách tag, vd <code>[react, hook]</code></td></tr>
+                <tr><td>point</td><td>Không</td><td>Điểm câu hỏi khi chấm theo thang điểm, vd <code>2</code>. Không set thì tự tính theo độ khó</td></tr>
+              </tbody>
+            </table>
+          </div>
 
           <p style={{ marginTop: 14 }}>Toàn bộ nội dung sẽ được copy (bấm nút ở góc trên):</p>
           <CopyBlock text={FULL_GUIDE} />
