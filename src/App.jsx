@@ -148,6 +148,7 @@ export default function App() {
 
   const [lockPrevious, setLockPrevious] = useState(false)
   const [confirmSubmit, setConfirmSubmit] = useState(false)
+  const [retryPool, setRetryPool] = useState(null) // mảng câu hỏi đang chờ cấu hình lại để làm lại
 
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
@@ -201,33 +202,36 @@ export default function App() {
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     setStartedAt(null); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
+    setRetryPool(null)
   }
 
   const buildQuiz = () => {
-    let pool = allQuestions
-    if (selectedCats.length > 0) pool = pool.filter(q => selectedCats.includes(q.category))
+    let pool = retryPool ?? allQuestions
+    if (!retryPool) {
+      if (selectedCats.length > 0) pool = pool.filter(q => selectedCats.includes(q.category))
+      if (!useAll) pool = pool.slice(0, limit || pool.length)
+    }
     if (mode === 'shuffle' || mode === 'random') pool = shuffle(pool)
-    if (!useAll) pool = pool.slice(0, limit || pool.length)
     setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
     setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records when the attempt actually started
     setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
+    setRetryPool(null)
   }
 
   const toggleCat = (cat) =>
     setSelectedCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
 
+  // Chuẩn bị làm lại: quay về màn config với pool câu đã chọn sẵn, chờ người dùng bấm Bắt đầu
   const startRetry = (subset) => {
     if (!subset.length) return
-    const pool = mode === 'shuffle' || mode === 'random' ? shuffle(subset) : subset
-    setQuestions(pool); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
-    setTimerStarted(false); setTimerPaused(false); setTimeUp(false)
-    setSecondsLeft(timerEnabled ? timerMinutes * 60 : 0)
+    setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
+    setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
-    // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records when the attempt actually started
-    setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
+    setStartedAt(null); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
+    setRetryPool(subset)
     setImportedResult(null)
     requestAnimationFrame(() => {
       document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -437,6 +441,16 @@ export default function App() {
             </p>
             <button className="btn btn-primary" onClick={startTimer}>▶ Bắt đầu làm bài</button>
           </div>
+        ) : retryPool ? (
+          <div className="start-gate">
+            <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔁</div>
+            <p style={{ fontSize: '1rem', color: 'var(--text)', marginBottom: 6 }}>
+              Đã chọn {retryPool.length} câu để làm lại
+            </p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text3)' }}>
+              Chỉnh cấu hình (timer, cách chấm điểm, thi thật...) ở thanh bên phải rồi bấm "Bắt đầu làm lại"
+            </p>
+          </div>
         ) : questions.length === 0 ? <EmptyState /> : allDone ? (
           <>
             {timeUp && (
@@ -639,15 +653,24 @@ export default function App() {
         )}
 
         {/* Config */}
-        {allQuestions.length > 0 && (
+        {(allQuestions.length > 0 || retryPool) && (
           <div className="config-block">
-            <div className="config-label">Chủ đề</div>
-            <div className="cat-chips">
-              {categories.map(cat => (
-                <span key={cat} className={`tag-chip${selectedCats.includes(cat) ? ' active' : ''}`}
-                  onClick={() => toggleCat(cat)}>{cat}</span>
-              ))}
-            </div>
+            {retryPool ? (
+              <div className="retry-pool-banner">
+                <div>🔁 Đang chuẩn bị làm lại <strong>{retryPool.length} câu</strong> đã chọn</div>
+                <button className="retry-pool-cancel" onClick={() => setRetryPool(null)}>Huỷ, quay lại bình thường</button>
+              </div>
+            ) : (
+              <>
+                <div className="config-label">Chủ đề</div>
+                <div className="cat-chips">
+                  {categories.map(cat => (
+                    <span key={cat} className={`tag-chip${selectedCats.includes(cat) ? ' active' : ''}`}
+                      onClick={() => toggleCat(cat)}>{cat}</span>
+                  ))}
+                </div>
+              </>
+            )}
 
             <div className="config-label">Thứ tự</div>
             <select value={mode} onChange={e => setMode(e.target.value)}>
@@ -655,17 +678,21 @@ export default function App() {
               <option value="category">Theo thứ tự trong file</option>
             </select>
 
-            <div className="config-label">Số câu sử dụng</div>
-            <label className="checkbox-row">
-              <input type="checkbox" checked={useAll} onChange={e => setUseAll(e.target.checked)} />
-              Dùng tất cả ({poolSize} câu)
-            </label>
-            {!useAll && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                <input type="number" min={1} max={poolSize} value={limit}
-                  onChange={e => setLimit(Math.max(1, Math.min(poolSize, +e.target.value)))} />
-                <span style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>/ {poolSize}</span>
-              </div>
+            {!retryPool && (
+              <>
+                <div className="config-label">Số câu sử dụng</div>
+                <label className="checkbox-row">
+                  <input type="checkbox" checked={useAll} onChange={e => setUseAll(e.target.checked)} />
+                  Dùng tất cả ({poolSize} câu)
+                </label>
+                {!useAll && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                    <input type="number" min={1} max={poolSize} value={limit}
+                      onChange={e => setLimit(Math.max(1, Math.min(poolSize, +e.target.value)))} />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>/ {poolSize}</span>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Timer setup */}
@@ -736,7 +763,7 @@ export default function App() {
             </div>
 
             <button className="btn btn-primary" style={{ width: '100%', marginTop: 14 }} onClick={buildQuiz}>
-              {questions.length > 0 ? '↺ Gen lại' : 'Bắt đầu'}
+              {retryPool ? '▶ Bắt đầu làm lại' : questions.length > 0 ? '↺ Gen lại' : 'Bắt đầu'}
             </button>
           </div>
         )}

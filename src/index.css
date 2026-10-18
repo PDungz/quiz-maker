@@ -209,6 +209,19 @@ img, svg { max-width: 100%; }
   font-weight: 600; margin-bottom: 6px; margin-top: 16px;
 }
 .config-label:first-child { margin-top: 0; }
+
+.retry-pool-banner {
+  background: var(--surface2); border: 1px solid var(--accent2);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  font-size: 0.82rem; color: var(--text);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.retry-pool-cancel {
+  background: none; border: none; color: var(--text3);
+  font-size: 0.72rem; text-decoration: underline;
+  cursor: pointer; text-align: left; padding: 0;
+}
+.retry-pool-cancel:hover { color: var(--danger); }
 .cat-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
 .tag-chip {
   padding: 3px 8px; border-radius: 20px; font-size: 0.72rem;
