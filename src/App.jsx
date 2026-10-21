@@ -4,12 +4,16 @@ import './App.css'
 import { shuffle, getPoint, isCorrect, formatTime, formatDuration } from './utils/quiz'
 import { getInitialTheme } from './utils/theme'
 import { slugifyFilename, formatTimestampForFilename, buildExportMarkdown, parseExportSnapshot, downloadTextFile, buildProgressMarkdown, parseProgressSnapshot } from './utils/export'
+import { saveSession, loadSession, clearSession } from './utils/persist'
 import EmptyState from './components/EmptyState'
 import HelpModal from './components/HelpModal'
 import ConfirmSubmitModal from './components/ConfirmSubmitModal'
 import ReviewScrollView from './components/ReviewScrollView'
 import ScrollView from './components/ScrollView'
 import ImportedResultPage from './components/ImportedResultPage'
+
+// Đọc session đã lưu một lần duy nhất lúc module load, dùng làm giá trị khởi tạo cho các state bên dưới
+const saved = loadSession() ?? {}
 
 export default function App() {
   const [theme, setTheme] = useState(getInitialTheme)
@@ -43,8 +47,8 @@ export default function App() {
     })
   }
 
-  const [allQuestions, setAllQuestions] = useState([])
-  const [files, setFiles] = useState([])
+  const [allQuestions, setAllQuestions] = useState(() => saved.allQuestions ?? [])
+  const [files, setFiles] = useState(() => saved.files ?? [])
   const fileRef = useRef()
   const [dragOver, setDragOver] = useState(false)
 
@@ -125,40 +129,40 @@ export default function App() {
     reader.readAsText(file)
   }
 
-  const [selectedCats, setSelectedCats] = useState([])
-  const [mode, setMode] = useState('shuffle')
-  const [useAll, setUseAll] = useState(true)
-  const [limit, setLimit] = useState(20)
+  const [selectedCats, setSelectedCats] = useState(() => saved.selectedCats ?? [])
+  const [mode, setMode] = useState(() => saved.mode ?? 'shuffle')
+  const [useAll, setUseAll] = useState(() => saved.useAll ?? true)
+  const [limit, setLimit] = useState(() => saved.limit ?? 20)
 
   // ── Timer setup ──
-  const [timerEnabled, setTimerEnabled] = useState(false)
-  const [timerMinutes, setTimerMinutes] = useState(15)
-  const [examMode, setExamMode] = useState(false) // true = thi thật, không cho dừng
-  const [timerStarted, setTimerStarted] = useState(false)
-  const [timerPaused, setTimerPaused] = useState(false)
-  const [secondsLeft, setSecondsLeft] = useState(0)
+  const [timerEnabled, setTimerEnabled] = useState(() => saved.timerEnabled ?? false)
+  const [timerMinutes, setTimerMinutes] = useState(() => saved.timerMinutes ?? 15)
+  const [examMode, setExamMode] = useState(() => saved.examMode ?? false) // true = thi thật, không cho dừng
+  const [timerStarted, setTimerStarted] = useState(() => saved.timerStarted ?? false)
+  const [timerPaused, setTimerPaused] = useState(() => saved.timerPaused ?? false)
+  const [secondsLeft, setSecondsLeft] = useState(() => saved.secondsLeft ?? 0)
   const [timeUp, setTimeUp] = useState(false)
 
   // ── Scoring setup ──
-  const [revealMode, setRevealMode] = useState('instant') // 'instant' | 'end'
-  const [scoreMode, setScoreMode] = useState('count') // 'count' | 'point'
-  const [pointMode, setPointMode] = useState('fixed') // 'fixed' | 'difficulty'
-  const [customPoints, setCustomPoints] = useState({ easy: 1, medium: 2, hard: 3 })
-  const [passPct, setPassPct] = useState(70)
+  const [revealMode, setRevealMode] = useState(() => saved.revealMode ?? 'instant') // 'instant' | 'end'
+  const [scoreMode, setScoreMode] = useState(() => saved.scoreMode ?? 'count') // 'count' | 'point'
+  const [pointMode, setPointMode] = useState(() => saved.pointMode ?? 'fixed') // 'fixed' | 'difficulty'
+  const [customPoints, setCustomPoints] = useState(() => saved.customPoints ?? { easy: 1, medium: 2, hard: 3 })
+  const [passPct, setPassPct] = useState(() => saved.passPct ?? 70)
 
-  const [lockPrevious, setLockPrevious] = useState(false)
+  const [lockPrevious, setLockPrevious] = useState(() => saved.lockPrevious ?? false)
   const [confirmSubmit, setConfirmSubmit] = useState(false)
-  const [retryPool, setRetryPool] = useState(null) // mảng câu hỏi đang chờ cấu hình lại để làm lại
+  const [retryPool, setRetryPool] = useState(() => saved.retryPool ?? null) // mảng câu hỏi đang chờ cấu hình lại để làm lại
 
-  const [questions, setQuestions] = useState([])
-  const [answers, setAnswers] = useState({})
-  const [revealed, setRevealed] = useState({})
-  const [current, setCurrent] = useState(0)
-  const [submitted, setSubmitted] = useState(false)
-  const [startedAt, setStartedAt] = useState(null)
-  const [elapsedSeconds, setElapsedSeconds] = useState(null)
-  const [pausedMs, setPausedMs] = useState(0)
-  const [pauseStartedAt, setPauseStartedAt] = useState(null)
+  const [questions, setQuestions] = useState(() => saved.questions ?? [])
+  const [answers, setAnswers] = useState(() => saved.answers ?? {})
+  const [revealed, setRevealed] = useState(() => saved.revealed ?? {})
+  const [current, setCurrent] = useState(() => saved.current ?? 0)
+  const [submitted, setSubmitted] = useState(() => saved.submitted ?? false)
+  const [startedAt, setStartedAt] = useState(() => saved.startedAt ?? null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => saved.elapsedSeconds ?? null)
+  const [pausedMs, setPausedMs] = useState(() => saved.pausedMs ?? 0)
+  const [pauseStartedAt, setPauseStartedAt] = useState(() => saved.timerPaused && saved.pauseStartedAt != null ? Date.now() : null)
 
   const categories = [...new Set(allQuestions.map(q => q.category).filter(Boolean))]
 
@@ -195,6 +199,7 @@ export default function App() {
   const clearAll = () => {
     setAllQuestions([]); setFiles([])
     resetQuiz()
+    clearSession()
   }
 
   const resetQuiz = () => {
@@ -379,6 +384,31 @@ export default function App() {
   const poolSize = allQuestions.filter(q => selectedCats.length === 0 || selectedCats.includes(q.category)).length
 
   const needsStart = timerEnabled && questions.length > 0 && !timerStarted && !allDone
+
+  // ── Tự động lưu session vào localStorage, debounce nhẹ để tránh ghi liên tục ──
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveSession({
+        allQuestions, files,
+        selectedCats, mode, useAll, limit,
+        timerEnabled, timerMinutes, examMode, timerStarted, timerPaused, secondsLeft,
+        revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious,
+        retryPool,
+        questions, answers, revealed, current, submitted,
+        startedAt, elapsedSeconds, pausedMs,
+        pauseStartedAt: pauseStartedAt != null ? Date.now() : null,
+      })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [
+    allQuestions, files,
+    selectedCats, mode, useAll, limit,
+    timerEnabled, timerMinutes, examMode, timerStarted, timerPaused, secondsLeft,
+    revealMode, scoreMode, pointMode, customPoints, passPct, lockPrevious,
+    retryPool,
+    questions, answers, revealed, current, submitted,
+    startedAt, elapsedSeconds, pausedMs, pauseStartedAt,
+  ])
 
   if (importedResult) {
     return <ImportedResultPage snapshot={importedResult} onClose={() => setImportedResult(null)} onRetry={startRetry} />
