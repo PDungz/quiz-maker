@@ -3,11 +3,13 @@ import { parseMarkdown } from './parser'
 import './App.css'
 import { shuffle, getPoint, isCorrect, formatTime, formatDuration } from './utils/quiz'
 import { getInitialTheme } from './utils/theme'
-import { slugifyFilename, formatTimestampForFilename, buildExportMarkdown, parseExportSnapshot, downloadTextFile, buildProgressMarkdown, parseProgressSnapshot } from './utils/export'
+import { slugifyFilename, formatTimestampForFilename, buildExportMarkdown, parseExportSnapshot, downloadTextFile, buildProgressMarkdown, parseProgressSnapshot, buildResultSnapshot } from './utils/export'
 import { saveSession, loadSession, clearSession } from './utils/persist'
 import EmptyState from './components/EmptyState'
 import HelpModal from './components/HelpModal'
 import ConfirmSubmitModal from './components/ConfirmSubmitModal'
+import RetryExportConfirmModal from './components/RetryExportConfirmModal'
+import ReviewFilterTabs from './components/ReviewFilterTabs'
 import ReviewScrollView from './components/ReviewScrollView'
 import ScrollView from './components/ScrollView'
 import ImportedResultPage from './components/ImportedResultPage'
@@ -43,6 +45,14 @@ export default function App() {
     setRetrySelection(prev => {
       const next = new Set(prev)
       next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
+
+  const selectManyRetry = (indices, select) => {
+    setRetrySelection(prev => {
+      const next = new Set(prev)
+      indices.forEach(i => select ? next.add(i) : next.delete(i))
       return next
     })
   }
@@ -153,6 +163,11 @@ export default function App() {
   const [lockPrevious, setLockPrevious] = useState(() => saved.lockPrevious ?? false)
   const [confirmSubmit, setConfirmSubmit] = useState(false)
   const [retryPool, setRetryPool] = useState(() => saved.retryPool ?? null) // mảng câu hỏi đang chờ cấu hình lại để làm lại
+  const [previousResult, setPreviousResult] = useState(null) // snapshot kết quả trước khi bấm Làm lại, để xem lại
+  const [hasExported, setHasExported] = useState(false) // đã xuất file cho kết quả hiện tại chưa
+  const [pendingRetrySubset, setPendingRetrySubset] = useState(null) // chờ xác nhận xuất file trước khi làm lại
+  const [pendingRetrySourceSnapshot, setPendingRetrySourceSnapshot] = useState(null) // snapshot nguồn đi kèm pendingRetrySubset, nếu retry bắt đầu từ trang xem kết quả đã lưu/trước đó
+  const [showPreviousResult, setShowPreviousResult] = useState(false)
 
   const [questions, setQuestions] = useState(() => saved.questions ?? [])
   const [answers, setAnswers] = useState(() => saved.answers ?? {})
@@ -207,7 +222,7 @@ export default function App() {
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     setStartedAt(null); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
-    setRetryPool(null)
+    setRetryPool(null); setHasExported(false); setPreviousResult(null); setShowPreviousResult(false)
   }
 
   const buildQuiz = () => {
@@ -223,24 +238,53 @@ export default function App() {
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     // eslint-disable-next-line react-hooks/purity -- event handler, not called during render; records when the attempt actually started
     setStartedAt(timerEnabled ? null : Date.now()); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
-    setRetryPool(null)
+    setRetryPool(null); setHasExported(false)
+    if (!retryPool) { setPreviousResult(null); setShowPreviousResult(false) }
   }
 
   const toggleCat = (cat) =>
     setSelectedCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
 
-  // Chuẩn bị làm lại: quay về màn config với pool câu đã chọn sẵn, chờ người dùng bấm Bắt đầu
-  const startRetry = (subset) => {
-    if (!subset.length) return
+  const exportSnapshot = (snap) => {
+    const { content, now } = buildExportMarkdown(snap.questions, snap.answers, snap.scoreMode, snap.pointMode, snap.customPoints, snap.pct, snap.passed, snap.passPct, snap.sourceNames, snap.elapsedSeconds, snap.timerEnabled, snap.timerMinutes, snap.startedAt)
+    const baseName = snap.sourceNames?.length === 1 ? slugifyFilename(snap.sourceNames[0]) : snap.sourceNames?.length > 1 ? 'nhieu-file' : 'quiz'
+    downloadTextFile(`ket-qua_${baseName}_${formatTimestampForFilename(now)}.md`, content)
+  }
+
+  const exportCurrentResult = () => {
+    const sourceNames = files.map(f => f.name)
+    exportSnapshot({ questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt })
+    setHasExported(true)
+  }
+
+  // Thực sự chuyển sang màn config làm lại: giữ kết quả hiện tại để có thể xem lại, rồi reset pool câu đã chọn
+  // sourceSnapshot: truyền vào khi retry được bấm từ trang xem kết quả đã lưu/kết quả trước đó, để giữ đúng dữ liệu đang xem thay vì state chính (có thể đang rỗng)
+  const proceedRetry = (subset, sourceSnapshot) => {
+    const sourceNames = files.map(f => f.name)
+    setPreviousResult(sourceSnapshot ?? buildResultSnapshot(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt))
     setQuestions([]); setAnswers({}); setRevealed({}); setCurrent(0); setSubmitted(false)
     setTimerStarted(false); setTimerPaused(false); setTimeUp(false); setSecondsLeft(0)
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     setStartedAt(null); setElapsedSeconds(null); setPausedMs(0); setPauseStartedAt(null)
     setRetryPool(subset)
+    setHasExported(false)
     setImportedResult(null)
+    setShowPreviousResult(false)
     requestAnimationFrame(() => {
       document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
     })
+  }
+
+  // Chuẩn bị làm lại: hỏi xuất file trước nếu chưa xuất, nếu đã xuất rồi thì chuyển luôn
+  // sourceSnapshot: khi gọi từ trang xem kết quả đã lưu/kết quả trước đó, giữ đúng dữ liệu đang xem cho previousResult
+  const startRetry = (subset, sourceSnapshot) => {
+    if (!subset.length) return
+    if (!hasExported) {
+      setPendingRetrySubset(subset)
+      setPendingRetrySourceSnapshot(sourceSnapshot ?? null)
+      return
+    }
+    proceedRetry(subset, sourceSnapshot)
   }
 
   const startTimer = () => {
@@ -411,7 +455,33 @@ export default function App() {
   ])
 
   if (importedResult) {
-    return <ImportedResultPage snapshot={importedResult} onClose={() => setImportedResult(null)} onRetry={startRetry} />
+    return (
+      <>
+        <ImportedResultPage snapshot={importedResult} onClose={() => setImportedResult(null)} onRetry={subset => startRetry(subset, importedResult)} />
+        {pendingRetrySubset && (
+          <RetryExportConfirmModal
+            onCancel={() => { setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+            onRetryWithoutExport={() => { proceedRetry(pendingRetrySubset, pendingRetrySourceSnapshot); setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+            onExportThenRetry={() => { exportSnapshot(importedResult); proceedRetry(pendingRetrySubset, pendingRetrySourceSnapshot); setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+          />
+        )}
+      </>
+    )
+  }
+
+  if (showPreviousResult && previousResult) {
+    return (
+      <>
+        <ImportedResultPage snapshot={previousResult} onClose={() => setShowPreviousResult(false)} onRetry={subset => startRetry(subset, previousResult)} />
+        {pendingRetrySubset && (
+          <RetryExportConfirmModal
+            onCancel={() => { setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+            onRetryWithoutExport={() => { proceedRetry(pendingRetrySubset, pendingRetrySourceSnapshot); setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+            onExportThenRetry={() => { exportSnapshot(previousResult); proceedRetry(pendingRetrySubset, pendingRetrySourceSnapshot); setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+          />
+        )}
+      </>
+    )
   }
 
   return (
@@ -486,20 +556,14 @@ export default function App() {
             {timeUp && (
               <div className="timeup-banner">⏰ Đã hết giờ — bài làm được tự động nộp</div>
             )}
-            <div className="review-filter">
-              <button className={`review-filter-btn${reviewFilter === 'all' ? ' active' : ''}`} onClick={() => setReviewFilter('all')}>
-                Tất cả <span className="review-filter-count">{questions.length}</span>
-              </button>
-              <button className={`review-filter-btn filter-correct${reviewFilter === 'correct' ? ' active' : ''}`} onClick={() => setReviewFilter('correct')}>
-                Đúng <span className="review-filter-count">{totalCorrect}</span>
-              </button>
-              <button className={`review-filter-btn filter-wrong${reviewFilter === 'wrong' ? ' active' : ''}`} onClick={() => setReviewFilter('wrong')}>
-                Sai <span className="review-filter-count">{questions.length - totalCorrect - totalSkipped}</span>
-              </button>
-              <button className={`review-filter-btn filter-skipped${reviewFilter === 'skipped' ? ' active' : ''}`} onClick={() => setReviewFilter('skipped')}>
-                Bỏ qua <span className="review-filter-count">{totalSkipped}</span>
-              </button>
-            </div>
+            <ReviewFilterTabs
+              questions={questions}
+              answers={answers}
+              reviewFilter={reviewFilter}
+              onFilterChange={setReviewFilter}
+              selectedSet={retrySelection}
+              onSelectMany={selectManyRetry}
+            />
             <ReviewScrollView
               questions={questions}
               answers={answers}
@@ -511,12 +575,6 @@ export default function App() {
               selectedSet={retrySelection}
               onToggleSelect={toggleRetrySelect}
             />
-            {retrySelection.size > 0 && (
-              <button
-                className="btn btn-primary retry-selected-btn"
-                onClick={() => startRetry(questions.filter((_, i) => retrySelection.has(i)))}
-              >🔁 Làm lại {retrySelection.size} câu đã chọn</button>
-            )}
           </>
         ) : viewMode === 'scroll' && !lockPrevious ? (
           <ScrollView
@@ -688,6 +746,9 @@ export default function App() {
             {retryPool ? (
               <div className="retry-pool-banner">
                 <div>🔁 Đang chuẩn bị làm lại <strong>{retryPool.length} câu</strong> đã chọn</div>
+                {previousResult && (
+                  <button className="retry-pool-cancel" onClick={() => setShowPreviousResult(true)}>👁 Xem kết quả trước đó</button>
+                )}
                 <button className="retry-pool-cancel" onClick={() => setRetryPool(null)}>Huỷ, quay lại bình thường</button>
               </div>
             ) : (
@@ -859,20 +920,15 @@ export default function App() {
                 )}
               </div>
             )}
-            {(questions.length - totalCorrect) > 0 && (
+            {retrySelection.size > 0 && (
               <button
-                className="btn btn-ghost retry-wrong-btn"
-                onClick={() => startRetry(questions.filter((qq, i) => !isCorrect(qq, answers[i])))}
-              >🔁 Làm lại {questions.length - totalCorrect} câu sai + bỏ qua</button>
+                className="btn btn-primary retry-selected-btn"
+                onClick={() => startRetry(questions.filter((_, i) => retrySelection.has(i)))}
+              >🔁 Làm lại {retrySelection.size} câu đã chọn</button>
             )}
             <button
               className="btn btn-ghost export-btn"
-              onClick={() => {
-                const sourceNames = files.map(f => f.name)
-                const { content, now } = buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt)
-                const baseName = sourceNames.length === 1 ? slugifyFilename(sourceNames[0]) : sourceNames.length > 1 ? 'nhieu-file' : 'quiz'
-                downloadTextFile(`ket-qua_${baseName}_${formatTimestampForFilename(now)}.md`, content)
-              }}
+              onClick={exportCurrentResult}
             >📥 Xuất kết quả (.md)</button>
           </div>
         )}
@@ -885,6 +941,13 @@ export default function App() {
           unansweredCount={questions.filter((_, i) => !revealed[i]).length}
           onConfirm={confirmAndSubmit}
           onCancel={cancelSubmit}
+        />
+      )}
+      {pendingRetrySubset && (
+        <RetryExportConfirmModal
+          onCancel={() => { setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+          onRetryWithoutExport={() => { proceedRetry(pendingRetrySubset, pendingRetrySourceSnapshot); setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
+          onExportThenRetry={() => { exportCurrentResult(); proceedRetry(pendingRetrySubset, pendingRetrySourceSnapshot); setPendingRetrySubset(null); setPendingRetrySourceSnapshot(null) }}
         />
       )}
     </div>

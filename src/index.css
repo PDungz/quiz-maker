@@ -316,6 +316,7 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 
 /* scroll view */
 .scroll-view { display: flex; flex-direction: column; gap: 10px; }
+.retry-selected-btn { width: 100%; margin-top: 10px; }
 .scroll-item {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 20px; margin-bottom: 4px;
@@ -338,12 +339,11 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 /* export button */
 .export-btn { width: 100%; margin-top: 10px; }
 .retry-wrong-btn { width: 100%; margin-top: 8px; }
-.retry-selected-btn { width: 100%; margin-top: 14px; }
 .retry-checkbox {
   display: flex; align-items: center; cursor: pointer;
 }
 .retry-checkbox input[type=checkbox] {
-  width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer;
+  width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer;
 }
 
 /* timer bar */
@@ -517,9 +517,9 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 }
 .review-filter-btn {
   background: none; border: none; cursor: pointer;
-  padding: 5px 10px; border-radius: 5px;
+  padding: 10px 14px; border-radius: 5px;
   font-size: 0.75rem; font-weight: 600; color: var(--text2);
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: 7px;
   transition: background 0.15s, color 0.15s;
 }
 .review-filter-count {
@@ -531,6 +531,12 @@ select:focus, input[type=number]:focus { outline: 1px solid var(--accent); }
 .review-filter-btn.filter-correct.active { background: var(--success); }
 .review-filter-btn.filter-wrong.active { background: var(--danger); }
 .review-filter-btn.filter-skipped.active { background: var(--text3); }
+
+.review-filter-tab-check {
+  width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer;
+}
+.review-filter-tab-check:disabled { opacity: 0.3; cursor: default; }
+.review-filter-btn.active .review-filter-tab-check { accent-color: #fff; }
 
 .review-list { display: flex; flex-direction: column; gap: 10px; }
 .review-item {
@@ -586,6 +592,7 @@ pre {
   border-radius: var(--radius-sm); font-size: 0.82rem;
 }
 .confirm-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+.retry-export-actions { flex-wrap: wrap; }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid var(--border);
@@ -616,7 +623,7 @@ pre {
   color: var(--text2); line-height: 1.6;
 }
 .modal-body pre { margin: 12px 0; font-size: 0.75rem; }
-.modal-body code { color: var(--text); }
+.modal-body p code, .modal-body li code { color: var(--text); }
 .table-scroll { overflow-x: auto; margin-top: 12px; }
 .help-table {
   width: 100%; border-collapse: collapse;

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getPoint, isCorrect, formatDuration } from '../utils/quiz'
+import ReviewFilterTabs from './ReviewFilterTabs'
 import ReviewScrollView from './ReviewScrollView'
 
 export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
@@ -7,12 +8,21 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
   const [highlightIndex, setHighlightIndex] = useState(null)
   const [selectedDotIndex, setSelectedDotIndex] = useState(null)
   const [retrySelection, setRetrySelection] = useState(() => new Set())
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 640)
   const { questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, savedAt, elapsedSeconds, timerEnabled, timerMinutes, startedAt } = snapshot
 
   const toggleRetrySelect = (i) => {
     setRetrySelection(prev => {
       const next = new Set(prev)
       next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
+
+  const selectManyRetry = (indices, select) => {
+    setRetrySelection(prev => {
+      const next = new Set(prev)
+      indices.forEach(i => select ? next.add(i) : next.delete(i))
       return next
     })
   }
@@ -34,7 +44,14 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
 
   return (
     <div className="app-layout">
-      <main className="main-content">
+      <main className={`main-content${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+        {sidebarCollapsed && (
+          <button
+            className="sidebar-expand-btn"
+            title="Mở lại thanh cài đặt"
+            onClick={() => setSidebarCollapsed(false)}
+          >⚙</button>
+        )}
         <div className="main-inner">
           <div className="imported-meta">
             <div className="imported-meta-head">
@@ -58,20 +75,14 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
             )}
           </div>
 
-          <div className="review-filter">
-            <button className={`review-filter-btn${filter === 'all' ? ' active' : ''}`} onClick={() => setFilter('all')}>
-              Tất cả <span className="review-filter-count">{questions.length}</span>
-            </button>
-            <button className={`review-filter-btn filter-correct${filter === 'correct' ? ' active' : ''}`} onClick={() => setFilter('correct')}>
-              Đúng <span className="review-filter-count">{totalCorrect}</span>
-            </button>
-            <button className={`review-filter-btn filter-wrong${filter === 'wrong' ? ' active' : ''}`} onClick={() => setFilter('wrong')}>
-              Sai <span className="review-filter-count">{questions.length - totalCorrect - totalSkipped}</span>
-            </button>
-            <button className={`review-filter-btn filter-skipped${filter === 'skipped' ? ' active' : ''}`} onClick={() => setFilter('skipped')}>
-              Bỏ qua <span className="review-filter-count">{totalSkipped}</span>
-            </button>
-          </div>
+          <ReviewFilterTabs
+            questions={questions}
+            answers={answers}
+            reviewFilter={filter}
+            onFilterChange={setFilter}
+            selectedSet={retrySelection}
+            onSelectMany={selectManyRetry}
+          />
 
           <ReviewScrollView
             questions={questions}
@@ -84,19 +95,22 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
             selectedSet={retrySelection}
             onToggleSelect={toggleRetrySelect}
           />
-          {retrySelection.size > 0 && (
-            <button
-              className="btn btn-primary retry-selected-btn"
-              onClick={() => onRetry(questions.filter((_, i) => retrySelection.has(i)))}
-            >🔁 Làm lại {retrySelection.size} câu đã chọn</button>
-          )}
         </div>
       </main>
 
-      <aside className="sidebar">
+      <div
+        className={`sidebar-backdrop${sidebarCollapsed ? '' : ' visible'}`}
+        onClick={() => setSidebarCollapsed(true)}
+      />
+      <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">📝</div>
           <div className="sidebar-title">Quiz</div>
+          <button
+            className="collapse-btn"
+            title="Thu nhỏ thanh cài đặt"
+            onClick={() => setSidebarCollapsed(true)}
+          >»</button>
           <button className="help-btn" title="Đóng kết quả đã lưu" onClick={onClose}>✕</button>
         </div>
 
@@ -149,11 +163,11 @@ export default function ImportedResultPage({ snapshot, onClose, onRetry }) {
               )}
             </div>
           )}
-          {(questions.length - totalCorrect) > 0 && (
+          {retrySelection.size > 0 && (
             <button
-              className="btn btn-ghost retry-wrong-btn"
-              onClick={() => onRetry(questions.filter((qq, i) => !isCorrect(qq, answers[i])))}
-            >🔁 Làm lại {questions.length - totalCorrect} câu sai + bỏ qua</button>
+              className="btn btn-primary retry-selected-btn"
+              onClick={() => onRetry(questions.filter((_, i) => retrySelection.has(i)))}
+            >🔁 Làm lại {retrySelection.size} câu đã chọn</button>
           )}
         </div>
       </aside>

@@ -14,6 +14,18 @@ export function formatTimestampForFilename(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}`
 }
 
+export function buildResultSnapshot(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt, savedAt) {
+  return {
+    kind: 'result',
+    savedAt: (savedAt ?? new Date()).toISOString(),
+    sourceNames: sourceNames ?? [],
+    scoreMode, pointMode, customPoints, pct, passed, passPct,
+    elapsedSeconds: elapsedSeconds ?? null, timerEnabled: !!timerEnabled, timerMinutes: timerMinutes ?? null, startedAt: startedAt ?? null,
+    questions,
+    answers,
+  }
+}
+
 export function buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt) {
   const now = new Date()
   const lines = []
