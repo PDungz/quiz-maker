@@ -364,19 +364,22 @@ export default function App() {
 
   const allDone = questions.length > 0 && submitted
 
+  // Chế độ thi thật ép chấm điểm về cuối bài, không cho xem đáp án/kết quả từng câu khi đang làm
+  const effectiveRevealMode = examMode ? 'end' : revealMode
+
   const q = questions[current]
   const isMulti = q?.type === 'multiple_choice'
   const sel = answers[current] ?? new Set()
   const answered = !!revealed[current]
   const locked = submitted || timeUp
-  const showAnswer = (revealMode === 'instant' && answered) || allDone
+  const showAnswer = (effectiveRevealMode === 'instant' && answered) || allDone
   const isRevealed = showAnswer
 
   const toggleOptionAt = (idx, key) => {
     const qq = questions[idx]
     const isMultiQ = qq?.type === 'multiple_choice'
     const wasAnswered = !!revealed[idx]
-    if ((revealMode === 'instant' && wasAnswered) || (lockPrevious && wasAnswered) || locked) return
+    if ((effectiveRevealMode === 'instant' && wasAnswered) || (lockPrevious && wasAnswered) || locked) return
     setAnswers(prev => {
       const s = new Set(prev[idx] ?? [])
       if (isMultiQ) { s.has(key) ? s.delete(key) : s.add(key) } else { s.clear(); s.add(key) }
@@ -389,14 +392,14 @@ export default function App() {
     const ans = answers[idx] ?? new Set()
     if (!ans.size || locked) return
     setRevealed(prev => ({ ...prev, [idx]: true }))
-    if (revealMode === 'end' && viewMode === 'single' && idx < questions.length - 1) setCurrent(c => c + 1)
+    if (effectiveRevealMode === 'end' && viewMode === 'single' && idx < questions.length - 1) setCurrent(c => c + 1)
   }
   const confirm = () => confirmAt(current)
 
   const skipAt = (idx) => {
     if (locked) return
     setRevealed(prev => ({ ...prev, [idx]: true }))
-    if (revealMode === 'end' && viewMode === 'single' && idx < questions.length - 1) setCurrent(c => c + 1)
+    if (effectiveRevealMode === 'end' && viewMode === 'single' && idx < questions.length - 1) setCurrent(c => c + 1)
   }
   const skip = () => skipAt(current)
 
@@ -405,7 +408,7 @@ export default function App() {
     const ansIdx = answers[idx] ?? new Set()
     const ckIdx = qq ? new Set(qq.correct_answer) : new Set()
     const answeredIdx = !!revealed[idx]
-    const showAnswerIdx = (revealMode === 'instant' && answeredIdx) || allDone
+    const showAnswerIdx = (effectiveRevealMode === 'instant' && answeredIdx) || allDone
     if (!showAnswerIdx) return ansIdx.has(key) ? 'selected' : ''
     if (ckIdx.has(key) && ansIdx.has(key)) return 'correct'
     if (!ckIdx.has(key) && ansIdx.has(key)) return 'wrong'
@@ -581,7 +584,7 @@ export default function App() {
             questions={questions}
             answers={answers}
             revealed={revealed}
-            revealMode={revealMode}
+            revealMode={effectiveRevealMode}
             allDone={allDone}
             locked={locked}
             scoreMode={scoreMode}
@@ -801,17 +804,22 @@ export default function App() {
                 </div>
                 <label className="checkbox-row" style={{ marginTop: 6 }}>
                   <input type="checkbox" checked={examMode} onChange={e => setExamMode(e.target.checked)} />
-                  Chế độ thi thật (không thể dừng giờ)
+                  Chế độ thi thật (không dừng giờ, không xem đáp án/kết quả cho tới khi nộp bài)
                 </label>
               </>
             )}
 
             {/* Reveal mode setup */}
             <div className="config-label">Thời điểm chấm điểm</div>
-            <select value={revealMode} onChange={e => setRevealMode(e.target.value)}>
+            <select value={revealMode} onChange={e => setRevealMode(e.target.value)} disabled={examMode}>
               <option value="instant">Chấm ngay sau mỗi câu</option>
               <option value="end">Chấm sau khi hoàn thành tất cả</option>
             </select>
+            {examMode && (
+              <p style={{ fontSize: '0.72rem', color: 'var(--text3)', marginTop: 4 }}>
+                Chế độ thi thật luôn chấm sau khi hoàn thành tất cả, không xem được đáp án/kết quả từng câu khi đang làm.
+              </p>
+            )}
 
             <label className="checkbox-row" style={{ marginTop: 10 }}>
               <input type="checkbox" checked={lockPrevious} onChange={e => setLockPrevious(e.target.checked)} />
@@ -869,7 +877,7 @@ export default function App() {
               {questions.map((_, i) => {
                 const ans = answers[i] ?? new Set()
                 const wasAnswered = !!revealed[i]
-                const canShowResult = wasAnswered && (revealMode === 'instant' || allDone)
+                const canShowResult = wasAnswered && (effectiveRevealMode === 'instant' || allDone)
                 const ck = new Set(questions[i].correct_answer)
                 const isSkipped = !ans.size
                 const ok = canShowResult && !isSkipped && ans.size === ck.size && [...ans].every(k => ck.has(k))
