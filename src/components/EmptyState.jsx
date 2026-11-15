@@ -1,9 +1,9 @@
 export default function EmptyState() {
   return (
-    <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text3)' }}>
-      <div style={{ fontSize: '3rem', marginBottom: 16 }}>📂</div>
-      <p style={{ fontSize: '1rem', marginBottom: 6, color: 'var(--text2)' }}>Chưa có câu hỏi nào</p>
-      <p style={{ fontSize: '0.85rem' }}>Thêm file .md từ thanh bên phải để bắt đầu</p>
+    <div className="text-center py-20 px-5 text-muted-foreground">
+      <div className="text-5xl mb-4">📂</div>
+      <p className="text-base mb-1.5 text-foreground">Chưa có câu hỏi nào</p>
+      <p className="text-sm">Thêm file .md từ thanh bên phải để bắt đầu</p>
     </div>
   )
 }

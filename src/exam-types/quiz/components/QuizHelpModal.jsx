@@ -1,4 +1,23 @@
 import { useState } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
+
+const FIELDS = [
+  ['id', 'Không', <>Định danh câu hỏi, vd <code>q1</code></>],
+  ['category', 'Không', <>Chủ đề, vd <code>React</code></>],
+  ['subcategory', 'Không', 'Chủ đề con'],
+  ['difficulty', 'Không', <><code>easy</code> / <code>medium</code> / <code>hard</code></>],
+  ['type', 'Không', <><code>single_choice</code> hoặc <code>multiple_choice</code></>],
+  ['question', 'Có', 'Nội dung câu hỏi'],
+  ['options', 'Có', 'Các lựa chọn dạng key-value'],
+  ['correct_answer', 'Có', <>Key đáp án đúng, vd <code>A</code> hoặc <code>[A, C]</code></>],
+  ['code', 'Không', <>Đoạn code, dùng <code>|</code> để giữ format</>],
+  ['code_lang', 'Không', <>Ngôn ngữ code, vd <code>dart</code></>],
+  ['explanation', 'Không', 'Giải thích đáp án'],
+  ['tags', 'Không', <>Danh sách tag, vd <code>[react, hook]</code></>],
+  ['point', 'Không', <>Điểm câu hỏi khi chấm theo thang điểm, vd <code>2</code>. Không set thì tự tính theo độ khó</>],
+]
 
 function CopyBlock({ text }) {
   const [copied, setCopied] = useState(false)
@@ -17,11 +36,16 @@ function CopyBlock({ text }) {
     setTimeout(() => setCopied(false), 1500)
   }
   return (
-    <div className="copy-block">
-      <button className={`copy-btn${copied ? ' copied' : ''}`} onClick={copy}>
+    <div className="relative w-full">
+      <Button
+        variant={copied ? 'default' : 'outline'}
+        size="sm"
+        className="absolute top-2 right-2"
+        onClick={copy}
+      >
         {copied ? '✓ Đã copy' : '📋 Copy'}
-      </button>
-      <pre><code>{text}</code></pre>
+      </Button>
+      <pre className="m-0 w-full max-h-[360px] overflow-y-auto whitespace-pre-wrap break-words bg-muted border rounded-lg p-3.5 font-mono text-xs"><code>{text}</code></pre>
     </div>
   )
 }
@@ -129,7 +153,7 @@ Số lượng câu hỏi: <điền số lượng>
 Độ khó: <easy / medium / hard / mix>
 Ghi chú thêm: <ví dụ: ưu tiên câu hỏi có code, tránh trùng lặp với bộ đã có, v.v.>`
 
-export default function HelpModal({ onClose }) {
+export default function QuizHelpModal({ onClose }) {
   const [copied, setCopied] = useState(false)
   const copyAll = async () => {
     try {
@@ -147,19 +171,17 @@ export default function HelpModal({ onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>📄 Định dạng file Markdown</h3>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button className={`copy-all-btn${copied ? ' copied' : ''}`} onClick={copyAll}>
-              {copied ? '✓ Đã copy toàn bộ' : '📋 Copy toàn bộ hướng dẫn'}
-            </button>
-            <button className="modal-close" onClick={onClose}>✕</button>
-          </div>
-        </div>
-        <div className="modal-body">
-          <p className="help-intro">
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="flex-row items-center justify-between pr-8 min-w-0">
+          <DialogTitle>📄 Định dạng file Markdown</DialogTitle>
+          <Button variant={copied ? 'default' : 'outline'} size="sm" onClick={copyAll}>
+            {copied ? '✓ Đã copy toàn bộ' : '📋 Copy toàn bộ hướng dẫn'}
+          </Button>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4 text-sm text-muted-foreground min-w-0">
+          <p className="bg-muted border-l-[3px] border-l-primary rounded-lg px-3.5 py-2.5">
             Đây là quy tắc định dạng đầy đủ — vừa để bạn đọc hiểu, vừa để dán thẳng cho AI (ChatGPT, Claude...)
             làm prompt sinh bộ câu hỏi đúng chuẩn. Bấm <strong>Copy toàn bộ hướng dẫn</strong> ở trên, điền phần
             "Chủ đề / Số lượng / Độ khó" ở cuối rồi gửi cho AI.
@@ -167,33 +189,29 @@ export default function HelpModal({ onClose }) {
 
           <p>Mỗi câu hỏi là một block nằm giữa hai dấu <code>---</code>. Các trường bắt buộc: <code>question</code>, <code>options</code>, <code>correct_answer</code>.</p>
 
-          <div className="table-scroll">
-            <table className="help-table">
-              <thead>
-                <tr><th>Trường</th><th>Bắt buộc</th><th>Mô tả</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>id</td><td>Không</td><td>Định danh câu hỏi, vd <code>q1</code></td></tr>
-                <tr><td>category</td><td>Không</td><td>Chủ đề, vd <code>React</code></td></tr>
-                <tr><td>subcategory</td><td>Không</td><td>Chủ đề con</td></tr>
-                <tr><td>difficulty</td><td>Không</td><td><code>easy</code> / <code>medium</code> / <code>hard</code></td></tr>
-                <tr><td>type</td><td>Không</td><td><code>single_choice</code> hoặc <code>multiple_choice</code></td></tr>
-                <tr><td>question</td><td><strong>Có</strong></td><td>Nội dung câu hỏi</td></tr>
-                <tr><td>options</td><td><strong>Có</strong></td><td>Các lựa chọn dạng key-value</td></tr>
-                <tr><td>correct_answer</td><td><strong>Có</strong></td><td>Key đáp án đúng, vd <code>A</code> hoặc <code>[A, C]</code></td></tr>
-                <tr><td>code</td><td>Không</td><td>Đoạn code, dùng <code>|</code> để giữ format</td></tr>
-                <tr><td>code_lang</td><td>Không</td><td>Ngôn ngữ code, vd <code>dart</code></td></tr>
-                <tr><td>explanation</td><td>Không</td><td>Giải thích đáp án</td></tr>
-                <tr><td>tags</td><td>Không</td><td>Danh sách tag, vd <code>[react, hook]</code></td></tr>
-                <tr><td>point</td><td>Không</td><td>Điểm câu hỏi khi chấm theo thang điểm, vd <code>2</code>. Không set thì tự tính theo độ khó</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Trường</TableHead>
+                <TableHead>Bắt buộc</TableHead>
+                <TableHead>Mô tả</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {FIELDS.map(([name, required, desc]) => (
+                <TableRow key={name}>
+                  <TableCell className="font-mono text-foreground">{name}</TableCell>
+                  <TableCell>{required === 'Có' ? <strong>Có</strong> : required}</TableCell>
+                  <TableCell>{desc}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
-          <p style={{ marginTop: 14 }}>Toàn bộ nội dung sẽ được copy (bấm nút ở góc trên):</p>
+          <p>Toàn bộ nội dung sẽ được copy (bấm nút ở góc trên):</p>
           <CopyBlock text={FULL_GUIDE} />
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

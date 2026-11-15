@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'quiz-maker-session'
+const DEFAULT_KEY = 'quiz-maker-session'
 
 function replacer(_key, value) {
   if (value instanceof Set) return { __type: 'Set', values: [...value] }
@@ -10,17 +10,19 @@ function reviver(_key, value) {
   return value
 }
 
-export function saveSession(data) {
+// key: cho phép mỗi exam-type lưu session riêng (Quiz/TOEIC/IELTS), tránh đè lẫn nhau.
+// Mặc định giữ nguyên key cũ của Quiz để không phá session đã lưu từ trước.
+export function saveSession(data, key = DEFAULT_KEY) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data, replacer))
+    localStorage.setItem(key, JSON.stringify(data, replacer))
   } catch {
     // localStorage đầy hoặc bị chặn — bỏ qua, không làm vỡ app
   }
 }
 
-export function loadSession() {
+export function loadSession(key = DEFAULT_KEY) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return null
     return JSON.parse(raw, reviver)
   } catch {
@@ -28,9 +30,9 @@ export function loadSession() {
   }
 }
 
-export function clearSession() {
+export function clearSession(key = DEFAULT_KEY) {
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(key)
   } catch {
     // bỏ qua
   }
