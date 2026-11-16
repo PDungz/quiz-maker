@@ -3,6 +3,7 @@ import { useState } from 'react'
 export const EXAM_TYPES = [
   { key: 'quiz', label: 'QUIZ' },
   { key: 'toeic', label: 'TOEIC' },
+  { key: 'vocab', label: 'TỪ VỰNG' },
   // { key: 'ielts', label: 'IELTS' },
 ]
 

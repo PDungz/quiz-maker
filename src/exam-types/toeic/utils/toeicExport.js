@@ -7,7 +7,7 @@ import { formatDuration } from '../../../utils/quiz'
 export function buildToeicProgressMarkdown(opts) {
   const {
     questions, answers, revealed,
-    sourceNames, examStyle, selectedParts, timerMinutes, practiceTimerEnabled,
+    sourceNames, practiceMode, topicFilterBy, examStyle, selectedParts, selectedTags, timerMinutes, practiceTimerEnabled,
     secondsLeft, timerStarted, timerPaused,
     startedAt, pausedMs,
   } = opts
@@ -35,7 +35,7 @@ export function buildToeicProgressMarkdown(opts) {
     questions,
     answers: questions.map((_, i) => [...(answers[i] ?? new Set())]),
     revealed,
-    examStyle, selectedParts, practiceTimerEnabled: !!practiceTimerEnabled,
+    practiceMode, topicFilterBy, examStyle, selectedParts, selectedTags, practiceTimerEnabled: !!practiceTimerEnabled,
     timerMinutes,
     secondsLeft, timerStarted: !!timerStarted, timerPaused: !!timerPaused,
     startedAt: startedAt ?? null, pausedMs: pausedMs ?? 0,

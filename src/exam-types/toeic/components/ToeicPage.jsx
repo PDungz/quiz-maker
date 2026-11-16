@@ -11,10 +11,13 @@ import { buildToeicProgressMarkdown, parseToeicProgressSnapshot } from '../utils
 import { getToeicSessionConfig } from '../utils/toeicSessionConfig'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import EmptyState from '@/components/EmptyState'
 import PassageQuestionGroup from './PassageQuestionGroup'
 import ToeicSetupSidebar from './ToeicSetupSidebar'
-import ToeicHelpModal from './ToeicHelpModal'
+import ToeicReadingHelpModal from './ToeicReadingHelpModal'
+import ToeicListeningHelpModal from './ToeicListeningHelpModal'
+import ToeicTopicHelpModal from './ToeicTopicHelpModal'
 import { useToeicConfig } from '../hooks/useToeicConfig'
 
 const SESSION_KEY = 'toeic-maker-session'
@@ -38,7 +41,9 @@ export default function ToeicPage() {
   const importResultRef = useRef()
   const importProgressRef = useRef()
   const [dragOver, setDragOver] = useState(false)
-  const [showHelp, setShowHelp] = useState(false)
+  const [showReadingHelp, setShowReadingHelp] = useState(false)
+  const [showListeningHelp, setShowListeningHelp] = useState(false)
+  const [showTopicHelp, setShowTopicHelp] = useState(false)
   const [reviewFilter, setReviewFilter] = useState('all')
   const [highlightIndex, setHighlightIndex] = useState(null)
   const [selectedDotIndex, setSelectedDotIndex] = useState(null)
@@ -47,10 +52,22 @@ export default function ToeicPage() {
 
   const config = useToeicConfig(saved)
   const {
+    practiceMode, setPracticeMode,
+    topicFilterBy, setTopicFilterBy,
     examStyle, setExamStyle, selectedParts, setSelectedParts, togglePart,
+    selectedTags, setSelectedTags, toggleTag,
     timerMinutes, setTimerMinutes, splitByPart, setSplitByPart,
     practiceTimerEnabled, setPracticeTimerEnabled,
   } = config
+  const isTopicMode = practiceMode === 'topic'
+  // Học lọc theo tag (chuyên đề ngữ pháp, không có khái niệm Part) không có Part để chia tab/
+  // nhóm — luôn cuộn chung 1 danh sách. Học lọc theo Part thì vẫn chia tab Part như Làm đề.
+  const isTopicByTag = isTopicMode && topicFilterBy === 'tag'
+  const effectiveSplitByPart = isTopicByTag ? false : splitByPart
+
+  const buildPool = () => isTopicByTag
+    ? allQuestions.filter(q => selectedTags.length === 0 || q.tags?.some(t => selectedTags.includes(t)))
+    : allQuestions.filter(q => selectedParts.length === 0 || selectedParts.includes(q.part))
 
   // Toàn bộ cấu hình của 1 lượt làm bài (examMode/revealMode/lockPrevious/timerEnabled) suy ra
   // từ examStyle + practiceTimerEnabled — xem utils/toeicSessionConfig.js, không rải điều kiện ở đây.
@@ -72,11 +89,16 @@ export default function ToeicPage() {
   const timer = useTimer({ saved, timerEnabled, timerMinutes, submitted, onTimeUp: autoSubmitOnTimeUp ? finalizeSubmit : () => {} })
   const { timerStarted, timerPaused, secondsLeft, timeUp, elapsedSeconds, startedAt, startTimer, resetTimer, armTimer } = timer
 
-  // Đếm số câu theo từng Part có trong toàn bộ câu đã nạp, dùng cho sidebar chọn Part
+  // Đếm số câu theo từng Part / từng tag chuyên đề có trong toàn bộ câu đã nạp, dùng cho sidebar
+  // chọn Part (làm đề đầy đủ) hoặc chọn chuyên đề (ôn luyện theo chuyên đề).
   const partCounts = {}
-  allQuestions.forEach(q => { if (q.part) partCounts[q.part] = (partCounts[q.part] ?? 0) + 1 })
+  const tagCounts = {}
+  allQuestions.forEach(q => {
+    if (q.part) partCounts[q.part] = (partCounts[q.part] ?? 0) + 1
+    q.tags?.forEach(tag => { tagCounts[tag] = (tagCounts[tag] ?? 0) + 1 })
+  })
 
-  const poolSize = allQuestions.filter(q => selectedParts.length === 0 || selectedParts.includes(q.part)).length
+  const poolSize = buildPool().length
 
   // Các Part thực sự có mặt trong đề đang làm (questions), theo đúng thứ tự tăng dần — dùng để
   // render tab Part và chọn activePart mặc định.
@@ -87,7 +109,7 @@ export default function ToeicPage() {
   const effectiveActivePart = partsInQuestions.includes(activePart) ? activePart : (partsInQuestions[0] ?? null)
 
   const buildQuiz = () => {
-    const pool = allQuestions.filter(q => selectedParts.length === 0 || selectedParts.includes(q.part))
+    const pool = buildPool()
     setQuestions(pool); setAnswers({}); setRevealed({}); setSubmitted(false)
     armTimer()
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
@@ -151,8 +173,11 @@ export default function ToeicPage() {
       setAnswers(snap.answers)
       setRevealed(snap.revealed ?? {})
       setSubmitted(false)
+      setPracticeMode(snap.practiceMode ?? 'topic')
+      setTopicFilterBy(snap.topicFilterBy ?? 'part')
       setExamStyle(snap.examStyle ?? 'practice')
       setSelectedParts(snap.selectedParts ?? [])
+      setSelectedTags(snap.selectedTags ?? [])
       setTimerMinutes(snap.timerMinutes ?? 75)
       setPracticeTimerEnabled(!!snap.practiceTimerEnabled)
       timer.setSecondsLeft(snap.secondsLeft ?? 0)
@@ -186,7 +211,7 @@ export default function ToeicPage() {
     const pausedMsAtSave = timer.pausedMsAtNow()
     const { content, now } = buildToeicProgressMarkdown({
       questions, answers, revealed,
-      sourceNames, examStyle, selectedParts, timerMinutes, practiceTimerEnabled,
+      sourceNames, practiceMode, topicFilterBy, examStyle, selectedParts, selectedTags, timerMinutes, practiceTimerEnabled,
       secondsLeft, timerStarted, timerPaused,
       startedAt, pausedMs: pausedMsAtSave,
     })
@@ -199,6 +224,7 @@ export default function ToeicPage() {
     const t = setTimeout(() => {
       saveSession({
         allQuestions, files,
+        practiceMode, topicFilterBy, selectedTags,
         examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
         timerStarted, timerPaused, secondsLeft,
         questions, answers, revealed, submitted,
@@ -209,6 +235,7 @@ export default function ToeicPage() {
     return () => clearTimeout(t)
   }, [
     allQuestions, files,
+    practiceMode, topicFilterBy, selectedTags,
     examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
     timerStarted, timerPaused, secondsLeft,
     questions, answers, revealed, submitted,
@@ -227,7 +254,7 @@ export default function ToeicPage() {
   // từng nhóm 1 câu (Part 5). Part 6-7: 1 đoạn văn + toàn bộ câu liên quan luôn hiển thị cùng 1
   // khối, không tách lẻ. splitByPart quyết định chỉ lấy câu của Part đang xem, hay lấy hết.
   const passageById = Object.fromEntries(allPassages.map(p => [p.id, p]))
-  const questionsInActivePart = splitByPart ? questions.filter(q => q.part === effectiveActivePart) : questions
+  const questionsInActivePart = effectiveSplitByPart ? questions.filter(q => q.part === effectiveActivePart) : questions
   const groups = []
   const passageGroupIndex = new Map()
   questionsInActivePart.forEach((q) => {
@@ -299,7 +326,7 @@ export default function ToeicPage() {
         {questions.length > 0 && !needsStart && !allDone && (
           <div className="shrink-0 px-3.5 md:px-8 pt-4 md:pt-6 flex justify-center">
             <div className="w-full max-w-[880px] flex flex-col gap-3">
-              {splitByPart && partsInQuestions.length > 1 && (
+              {effectiveSplitByPart && partsInQuestions.length > 1 && (
                 <div className="flex gap-1 bg-muted border rounded-lg w-full md:w-fit">
                   {partsInQuestions.map(part => (
                     <Button
@@ -380,7 +407,7 @@ export default function ToeicPage() {
                 </div>
               )}
               {groups.map((g, gi) => {
-                const showPartHeading = !splitByPart && g.part !== lastPartHeading
+                const showPartHeading = !effectiveSplitByPart && g.part !== lastPartHeading
                 if (showPartHeading) lastPartHeading = g.part
                 return (
                   <PassageQuestionGroup
@@ -430,6 +457,20 @@ export default function ToeicPage() {
           >»</Button>
         </div>
 
+        <Tabs value={practiceMode} onValueChange={setPracticeMode} className="pt-4">
+          <TabsList className="w-full">
+            <TabsTrigger value="topic">Học</TabsTrigger>
+            <TabsTrigger value="full">Làm đề</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {isTopicMode && (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors text-left pt-2"
+            onClick={() => setShowTopicHelp(true)}
+          >ℹ️ Chế độ Học hoạt động thế nào?</button>
+        )}
+
         <div className="flex flex-col gap-3 py-5">
           <div
             className={`block w-full text-center py-3 px-3 rounded-lg border-[1.5px] border-dashed text-sm text-muted-foreground cursor-pointer transition-colors ${
@@ -464,8 +505,27 @@ export default function ToeicPage() {
             <input ref={importProgressRef} type="file" accept=".md" className="hidden"
               onChange={e => { loadProgressFile(e.target.files); e.target.value = '' }} />
           </Button>
-          <div className="text-xs text-muted-foreground text-center cursor-pointer hover:text-foreground transition-colors" onClick={() => setShowHelp(true)}>
-            ℹ️ Xem hướng dẫn định dạng file .md
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              className="flex items-center gap-2 w-full text-left text-xs rounded-lg border px-2.5 py-2 text-muted-foreground hover:text-foreground hover:border-ring transition-colors"
+              onClick={() => setShowReadingHelp(true)}
+            >
+              <span className="text-base shrink-0">📖</span>
+              <span>
+                <strong className="text-foreground">Reading</strong> · Part 5-7, không audio
+              </span>
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-2 w-full text-left text-xs rounded-lg border px-2.5 py-2 text-muted-foreground hover:text-foreground hover:border-ring transition-colors"
+              onClick={() => setShowListeningHelp(true)}
+            >
+              <span className="text-base shrink-0">🎧</span>
+              <span>
+                <strong className="text-foreground">Listening</strong> · Part 1-4, cần audio/ảnh
+              </span>
+            </button>
           </div>
         </div>
 
@@ -497,10 +557,17 @@ export default function ToeicPage() {
 
         {allQuestions.length > 0 && (
           <ToeicSetupSidebar
+            practiceMode={practiceMode}
+            topicFilterBy={topicFilterBy}
+            setTopicFilterBy={setTopicFilterBy}
             partCounts={partCounts}
             selectedParts={selectedParts}
             togglePart={togglePart}
             setSelectedParts={setSelectedParts}
+            tagCounts={tagCounts}
+            selectedTags={selectedTags}
+            toggleTag={toggleTag}
+            setSelectedTags={setSelectedTags}
             examStyle={examStyle}
             setExamStyle={setExamStyle}
             splitByPart={splitByPart}
@@ -518,11 +585,11 @@ export default function ToeicPage() {
         {questions.length > 0 && (
           <div className="flex flex-col gap-2 border-t pt-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
-              Câu hỏi{splitByPart && effectiveActivePart && !allDone ? ` — Part ${effectiveActivePart}` : ''} {allDone && <span className={`font-bold ${passed ? 'text-success' : 'text-destructive'}`}>{pct}%</span>}
+              Câu hỏi{effectiveSplitByPart && effectiveActivePart && !allDone ? ` — Part ${effectiveActivePart}` : ''} {allDone && <span className={`font-bold ${passed ? 'text-success' : 'text-destructive'}`}>{pct}%</span>}
             </div>
             <div className="flex flex-wrap gap-2">
               {questions.map((q, i) => {
-                if (splitByPart && !allDone && q.part !== effectiveActivePart) return null
+                if (effectiveSplitByPart && !allDone && q.part !== effectiveActivePart) return null
                 const ans = answers[i] ?? new Set()
                 const wasAnswered = !!revealed[i]
                 const canShowResult = canShowNavDotResult(effectiveRevealMode, wasAnswered, allDone)
@@ -582,7 +649,9 @@ export default function ToeicPage() {
           </ResultSidebarSummary>
         )}
       </aside>
-      {showHelp && <ToeicHelpModal onClose={() => setShowHelp(false)} />}
+      {showReadingHelp && <ToeicReadingHelpModal onClose={() => setShowReadingHelp(false)} />}
+      {showListeningHelp && <ToeicListeningHelpModal onClose={() => setShowListeningHelp(false)} />}
+      {showTopicHelp && <ToeicTopicHelpModal onClose={() => setShowTopicHelp(false)} />}
     </div>
   )
 }

@@ -33,7 +33,9 @@ export function parseMarkdownWithPassages(text) {
   return { questions, passages };
 }
 
-function parseYamlBlockRaw(yaml) {
+// Exported để các parser khác (vd exam-types/vocab) tái dùng cú pháp YAML-ish này cho block
+// --- ... --- của riêng chúng, thay vì viết lại 1 parser tương tự.
+export function parseYamlBlockRaw(yaml) {
   try {
     const obj = {};
     const lines = yaml.split('\n');
@@ -79,10 +81,27 @@ function parseYamlBlockRaw(yaml) {
 
       if (val === '' && i + 1 < lines.length && lines[i + 1].match(/^\s+-\s/)) {
         i++;
+        const dashIndent = lines[i].match(/^(\s*)-\s/)[1].length;
         const arr = [];
-        while (i < lines.length && lines[i].match(/^\s+-\s/)) {
-          arr.push(lines[i].replace(/^\s+-\s/, '').trim().replace(/^["'](.*)["']$/, '$1'));
+        while (i < lines.length && lines[i].match(new RegExp(`^\\s{${dashIndent}}-\\s`))) {
+          const firstLine = lines[i].replace(new RegExp(`^\\s{${dashIndent}}-\\s`), '');
+          const firstKv = firstLine.match(/^(\w[\w_-]*):\s*(.*)/);
           i++;
+          if (firstKv) {
+            // Item là object nhiều key:value (vd "- word: a" rồi các dòng con "  part_of_speech: b")
+            // thay vì 1 string trơn — mỗi field liên hệ trong .md (vd synonyms) có thể dùng cả 2
+            // dạng, giữ nguyên tương thích ngược cho các list string đơn giản đã có từ trước.
+            const item = { [firstKv[1]]: firstKv[2].trim().replace(/^["'](.*)["']$/, '$1') };
+            const itemIndent = dashIndent + 2;
+            while (i < lines.length && lines[i].match(new RegExp(`^\\s{${itemIndent},}\\w`))) {
+              const nkv = lines[i].trim().match(/^(\w[\w_-]*):\s*(.*)/);
+              if (nkv) item[nkv[1]] = nkv[2].trim().replace(/^["'](.*)["']$/, '$1');
+              i++;
+            }
+            arr.push(item);
+          } else {
+            arr.push(firstLine.trim().replace(/^["'](.*)["']$/, '$1'));
+          }
         }
         obj[key] = arr;
         continue;

@@ -4,6 +4,7 @@ import AppShell from './app/AppShell'
 import { useActiveExamType } from './app/useActiveExamType'
 import QuizPage from './exam-types/quiz/components/QuizPage'
 import ToeicPage from './exam-types/toeic/components/ToeicPage'
+import VocabPage from './exam-types/vocab/components/VocabPage'
 import IeltsComingSoon from './exam-types/ielts/IeltsComingSoon'
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
     >
       {activeExamType === 'quiz' && <QuizPage />}
       {activeExamType === 'toeic' && <ToeicPage />}
+      {activeExamType === 'vocab' && <VocabPage />}
       {activeExamType === 'ielts' && <IeltsComingSoon />}
     </AppShell>
   )

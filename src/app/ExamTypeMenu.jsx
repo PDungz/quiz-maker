@@ -9,7 +9,7 @@ export default function ExamTypeMenu({ activeExamType, onChange }) {
           key={t.key}
           variant={activeExamType === t.key ? 'default' : 'secondary'}
           size="sm"
-          className="h-8 w-20 px-0 text-xs font-bold tracking-wide"
+          className="h-8 px-3 text-xs font-bold tracking-wide whitespace-nowrap"
           onClick={() => onChange(t.key)}
         >{t.label}</Button>
       ))}
