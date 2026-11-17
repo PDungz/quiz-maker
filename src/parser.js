@@ -168,5 +168,8 @@ function buildQuestion(obj) {
     // đúng số câu dù câu đang ở vị trí nào trong mảng sau khi filter/lọc theo Part — không được
     // suy ra từ index mảng vì index đổi theo bộ lọc đang áp dụng.
     number: obj.number !== undefined && obj.number !== '' ? Number(obj.number) : null,
+    // transcript: nguyên văn lời đọc trong audio (TOEIC Listening). Dùng cho chế độ "Nghe & gõ lại"
+    // ở tab Học — người học gõ lại câu đã nghe, app chấm gần đúng so với transcript gốc.
+    transcript: obj.transcript || '',
   };
 }

@@ -33,6 +33,7 @@ export default function ToeicSetupSidebar({
   splitByPart, setSplitByPart,
   timerMinutes, setTimerMinutes,
   practiceTimerEnabled, setPracticeTimerEnabled,
+  listeningAnswerMode, setListeningAnswerMode,
   poolSize, onBuildQuiz, hasQuestions,
 }) {
   const parts = Object.keys(partCounts).map(Number).sort((a, b) => a - b)
@@ -42,6 +43,11 @@ export default function ToeicSetupSidebar({
   // selectedParts/selectedTags rỗng nghĩa là "không lọc gì" = dùng tất cả, nên coi như đã chọn hết
   const allPartsSelected = selectedParts.length === 0 || parts.every(p => selectedParts.includes(p))
   const allTagsSelected = selectedTags.length === 0 || tags.every(t => selectedTags.includes(t))
+  // Chế độ "Nghe & gõ lại" chỉ có ý nghĩa khi đang lọc theo Part VÀ có ít nhất 1 Part Listening
+  // (1-4) đang được chọn — lọc theo tag là chuyên đề ngữ pháp (Reading), không có audio để nghe chép.
+  const hasListeningPartSelected = !isTopicByTag &&
+    (allPartsSelected ? parts.some(p => p >= 1 && p <= 4) : selectedParts.some(p => p >= 1 && p <= 4))
+  const showListeningAnswerMode = isTopicMode && hasListeningPartSelected
 
   return (
     <div className="flex flex-col gap-5 border-t pt-5 mt-2">
@@ -61,6 +67,19 @@ export default function ToeicSetupSidebar({
                 <SelectContent>
                   <SelectItem value="part">Part — luyện riêng 1 dạng (vd chỉ Part 2)</SelectItem>
                   <SelectItem value="tag">Chuyên đề ngữ pháp — luyện riêng 1 điểm (vd chỉ "thì")</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {showListeningAnswerMode && (
+            <div className="flex flex-col gap-2 pb-1">
+              <FieldLabel>Cách trả lời (Listening)</FieldLabel>
+              <Select value={listeningAnswerMode} onValueChange={setListeningAnswerMode}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="choice">Chọn đáp án — như bình thường</SelectItem>
+                  <SelectItem value="dictation">Nghe & gõ lại — luyện nghe chép, tự chấm theo transcript</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -12,7 +12,7 @@ const FIELDS = [
   ['question', 'Có', 'Nội dung câu hỏi'],
   ['options', 'Có', 'Các lựa chọn dạng key-value'],
   ['correct_answer', 'Có', <>Key đáp án đúng, vd <code>A</code></>],
-  ['explanation', 'Không', <>Giải thích đáp án, dùng tag <code>&lt;hl type="..."&gt;</code> để đánh dấu dấu hiệu nhận biết</>],
+  ['explanation', 'Có', <>Lời giải đầy đủ 4 phần: Dịch / Chọn X vì / Các đáp án / Ghi nhớ, dùng tag <code>&lt;hl type="..."&gt;</code> để đánh dấu dấu hiệu nhận biết</>],
 ]
 
 const HL_TYPES = [
@@ -113,15 +113,45 @@ tag gợi ý và cách hoạt động ở hướng dẫn riêng của tab Học 
 | question | Có | Nội dung câu hỏi |
 | options | Có | Các lựa chọn dạng key: value |
 | correct_answer | Có | Key đáp án đúng, vd A |
-| explanation | Không | Giải thích đáp án, nên dùng tag \\<hl type="..."\\> để đánh dấu dấu hiệu nhận biết |
+| explanation | Có | Lời giải đầy đủ theo chuẩn 4 phần ở mục dưới, dùng dạng nhiều dòng \`explanation: |\` |
 
 Các trường khác (id, category, difficulty, point...) giống hệt Quiz thường.
 
-## Đánh dấu dấu hiệu nhận biết trong explanation (quan trọng, giống sách chữa bài)
+## Chuẩn viết explanation (quan trọng)
+
+Mỗi \`explanation\` phải đủ 4 phần, theo đúng thứ tự và đúng nhãn dưới đây. Viết bằng tiếng Việt,
+KHÔNG dùng icon / emoji, KHÔNG dùng ký tự trang trí. Các phần cách nhau một dòng trống.
+
+Dùng dạng nhiều dòng của YAML (\`explanation: |\`), nội dung thụt vào 2 dấu cách.
+
+### Phần 1. Dịch:
+Dịch nghĩa tiếng Việt của cả câu.
+- Part 5: dịch cả câu với đáp án đúng đã điền.
+- Part 6: dịch câu chứa chỗ trống với đáp án đúng đã điền (câu điền câu thì dịch câu đó).
+- Part 7: dịch câu hỏi và nêu ngắn gọn thông tin liên quan trong đoạn văn.
+
+### Phần 2. Chọn X vì:
+(X là chữ cái đáp án đúng.) Nêu lý do chọn, chỉ rõ vị trí chỗ trống cần loại từ gì hoặc thông tin nào
+trong đoạn văn dẫn đến đáp án. Bọc đúng cụm là dấu hiệu bằng thẻ \`<hl>\` (xem mục dưới).
+
+### Phần 3. Các đáp án:
+Liệt kê TẤT CẢ 4 đáp án, mỗi đáp án một dòng, dạng:
+\`- (A) từ (loại từ): nghĩa → ĐÚNG\` hoặc \`→ loại, lý do\`
+- Part 5-6 ngữ pháp / từ loại: bắt buộc ghi loại từ (n, v, adj, adv, V2/V3, V-ing...) và nghĩa tiếng Việt của từng từ.
+  Nếu một từ có nhiều loại từ (vd "refund" vừa là n vừa là v) thì ghi cả hai.
+- Part 6 điền câu và Part 7: ghi nghĩa tiếng Việt của từng đáp án và lý do loại (sai ngữ cảnh, không có trong đoạn văn, ngược thông tin...).
+- Lý do loại phải cụ thể, không viết chung chung kiểu "sai nghĩa".
+
+### Phần 4. Ghi nhớ:
+Nêu cấu trúc, cụm danh từ, collocation hoặc điểm ngữ pháp liên quan, giải thích nghĩa và cách dùng,
+kèm ít nhất 1 ví dụ tiếng Anh có dịch tiếng Việt trong ngoặc.
+
+## Đánh dấu dấu hiệu nhận biết trong explanation
 
 Khi viết \`explanation\`, bọc đúng cụm từ là "dấu hiệu nhận biết" bằng tag \`<hl type="...">...</hl>\`
 để app highlight bằng màu riêng cho từng loại — giống cách sách luyện thi dùng nhiều màu bút dạ
-quang khi chữa bài. KHÔNG bọc cả câu, chỉ bọc đúng cụm từ là dấu hiệu.
+quang khi chữa bài. KHÔNG bọc cả câu, chỉ bọc đúng cụm từ là dấu hiệu. Dùng \`<hl>\` ở phần
+"Chọn X vì" và phần "Ghi nhớ".
 
 Các type hợp lệ:
 
@@ -147,7 +177,18 @@ options:
   C: increasing
   D: to increase
 correct_answer: B
-explanation: Đáp án B đúng vì <hl type="time">last quarter</hl> là dấu hiệu thời gian quá khứ, nên động từ phải chia <hl type="grammar">quá khứ đơn</hl>.
+explanation: |
+  Dịch: Công ty đã tăng lợi nhuận một cách đáng kể vào quý trước.
+
+  Chọn B vì: Câu chưa có động từ chính, và <hl type="time">last quarter</hl> là dấu hiệu thời gian quá khứ, nên động từ phải chia <hl type="grammar">quá khứ đơn</hl> → "increased".
+
+  Các đáp án:
+  - (A) increase (v nguyên mẫu / n): tăng; sự tăng → loại, chủ ngữ "The company" số ít ở quá khứ cần động từ chia thì, không dùng nguyên mẫu.
+  - (B) increased (V2/V3): đã tăng → ĐÚNG.
+  - (C) increasing (V-ing / adj): đang tăng → loại, V-ing đứng một mình không làm động từ chính được.
+  - (D) to increase (to V): để tăng → loại, to V không làm động từ chính của câu.
+
+  Ghi nhớ: <hl type="collocation">increase + N</hl> = làm tăng cái gì (ngoại động từ); <hl type="collocation">an increase in + N</hl> = sự tăng về cái gì. Ví dụ: Sales increased by 10 percent last year. (Doanh số tăng 10 phần trăm năm ngoái.)
 ---
 
 ## Ví dụ Part 6 (1 đoạn văn + ĐÚNG 4 câu hỏi theo 4 chỗ trống (1)(2)(3)(4))
@@ -176,7 +217,18 @@ options:
   C: using
   D: uses
 correct_answer: C
-explanation: Trước chỗ trống đã có mệnh đề đầy đủ, nên cần phân từ <hl type="grammar">V-ing</hl> để chỉ cách thức.
+explanation: |
+  Dịch: Từ ngày 1 tháng 12, tất cả khách sẽ đăng ký vào cổng bằng máy tự phục vụ.
+
+  Chọn C vì: Trước chỗ trống đã có mệnh đề đầy đủ "all visitors will check in", nên cần <hl type="grammar">phân từ V-ing</hl> để chỉ cách thức thực hiện hành động.
+
+  Các đáp án:
+  - (A) use (v / n): dùng; sự sử dụng → loại, động từ nguyên mẫu không nối được vào mệnh đề đã đủ chủ vị.
+  - (B) used (V2/V3 / adj): đã dùng; quen với → loại, mang nghĩa bị động hoặc quá khứ, không hợp.
+  - (C) using (V-ing): bằng cách dùng → ĐÚNG.
+  - (D) uses (v ngôi thứ ba / n số nhiều): dùng; các cách dùng → loại, thêm một động từ chia thì vào mệnh đề đã có động từ.
+
+  Ghi nhớ: <hl type="grammar">mệnh đề + V-ing</hl> dùng để diễn tả cách thức hoặc phương tiện. Ví dụ: Customers can pay using a credit card. (Khách có thể thanh toán bằng thẻ tín dụng.)
 ---
 
 ---
@@ -192,7 +244,18 @@ options:
   C: visibility
   D: visibilities
 correct_answer: A
-explanation: "wear the badge" đã đủ nghĩa, nên cần <hl type="grammar">trạng từ</hl> bổ nghĩa cách thức.
+explanation: |
+  Dịch: Khách phải đeo thẻ một cách dễ thấy trong mọi lúc.
+
+  Chọn A vì: "wear the badge" đã là cụm động từ + tân ngữ đầy đủ nghĩa, nên chỗ trống cần <hl type="grammar">trạng từ</hl> bổ nghĩa cho động từ "wear".
+
+  Các đáp án:
+  - (A) visibly (adv): một cách rõ ràng, dễ thấy → ĐÚNG.
+  - (B) visible (adj): có thể nhìn thấy → loại, tính từ không bổ nghĩa cho động từ.
+  - (C) visibility (n): tầm nhìn, độ hiển thị → loại, danh từ thừa sau tân ngữ.
+  - (D) visibilities (n số nhiều): hiếm dùng → loại, cũng là danh từ.
+
+  Ghi nhớ: <hl type="grammar">trạng từ đứng cuối cụm động từ + tân ngữ</hl> để bổ nghĩa cách thức. <hl type="collocation">at all times</hl> = mọi lúc. Ví dụ: Please keep your ID visibly displayed. (Vui lòng để thẻ nhận dạng ở chỗ dễ thấy.)
 ---
 
 ---
@@ -207,7 +270,18 @@ options:
   C: The building was constructed more than twenty years ago.
   D: Anyone without a badge will be asked to return to the front desk.
 correct_answer: D
-explanation: Câu trước nói về quy định đeo thẻ, nên câu tiếp theo cần nói về <hl type="vocab">hệ quả nếu không có thẻ</hl>.
+explanation: |
+  Dịch: Bất kỳ ai không có thẻ sẽ bị yêu cầu quay lại quầy lễ tân.
+
+  Chọn D vì: Câu trước nói về quy định phải đeo thẻ, nên câu tiếp theo hợp lý nhất là <hl type="vocab">hệ quả khi không có thẻ</hl>. Câu cuối đoạn nói về việc trả thẻ cũng liên quan đến quy trình thẻ khách.
+
+  Các đáp án:
+  - (A) Căng tin sẽ kéo dài giờ ăn trưa vào tháng sau → loại, nói về căng tin, không liên quan đến thẻ khách.
+  - (B) Thẻ đậu xe có thể được gia hạn qua mạng nội bộ → loại, nói về thẻ đậu xe, lạc đề.
+  - (C) Tòa nhà được xây hơn hai mươi năm trước → loại, thông tin về tòa nhà, không liên quan.
+  - (D) Bất kỳ ai không có thẻ sẽ bị yêu cầu quay lại quầy lễ tân → ĐÚNG, tiếp nối quy định đeo thẻ.
+
+  Ghi nhớ: Với câu điền câu, hãy đọc câu liền trước và liền sau để xác định chủ đề và quan hệ (hệ quả, bổ sung, đối lập). Ví dụ: Visitors must sign in. Those who do not will be turned away. (Khách phải đăng ký. Ai không làm vậy sẽ bị từ chối.)
 ---
 
 ---
@@ -223,7 +297,18 @@ options:
   C: departing
   D: departed
 correct_answer: B
-explanation: Mệnh đề thời gian bắt đầu bằng <hl type="connector">when</hl> dùng <hl type="grammar">hiện tại đơn</hl> thay cho tương lai.
+explanation: |
+  Dịch: Vui lòng trả lại tất cả thẻ khi khách rời đi.
+
+  Chọn B vì: Mệnh đề thời gian bắt đầu bằng <hl type="connector">when</hl> trong câu nói về tương lai dùng <hl type="grammar">hiện tại đơn</hl> thay cho tương lai. Chủ ngữ "visitors" số nhiều nên động từ giữ nguyên "depart".
+
+  Các đáp án:
+  - (A) departure (n): sự khởi hành, sự rời đi → loại, mệnh đề cần động từ.
+  - (B) depart (v nguyên mẫu): rời đi → ĐÚNG.
+  - (C) departing (V-ing / adj): đang rời đi → loại, thiếu trợ động từ nên không thành động từ chính của mệnh đề.
+  - (D) departed (V2/V3): đã rời đi → loại, câu mang nghĩa tương lai, không dùng quá khứ.
+
+  Ghi nhớ: <hl type="grammar">when / after / before / as soon as + hiện tại đơn</hl> (không dùng will) khi nói về tương lai. Ví dụ: Please call me when you arrive. (Hãy gọi tôi khi bạn đến.)
 ---
 
 ## Ví dụ Part 7 (1 đoạn văn + 2-4 câu hỏi, ở đây 3 câu — thường không gắn tags vì là đọc hiểu, không kiểm tra ngữ pháp)
@@ -252,7 +337,18 @@ options:
   C: The ticketing system was not ready.
   D: Too few employees had signed up.
 correct_answer: A
-explanation: Đoạn văn ghi rõ lý do <hl type="vocab">attend a conference</hl>, nên đáp án là A.
+explanation: |
+  Dịch: Tại sao buổi tập huấn bị dời lịch? Đoạn văn nêu lý do ngay sau "because".
+
+  Chọn A vì: Đoạn văn ghi <hl type="connector">because</hl> <hl type="vocab">the trainer has to attend a conference</hl> (vì người tập huấn phải dự hội nghị), khớp với "The trainer will be away at a conference".
+
+  Các đáp án:
+  - (A) Người tập huấn sẽ đi vắng vì dự hội nghị → ĐÚNG, diễn đạt lại thông tin trong đoạn.
+  - (B) Phòng họp không có sẵn → loại, đoạn văn không nhắc đến phòng họp.
+  - (C) Hệ thống bán vé chưa sẵn sàng → loại, đoạn văn không nhắc đến hệ thống vé.
+  - (D) Có quá ít nhân viên đăng ký → loại, đoạn văn không nhắc đến số người đăng ký.
+
+  Ghi nhớ: <hl type="vocab">attend a conference</hl> = tham dự hội nghị. Câu hỏi "Why...?" thường được trả lời sau các từ báo lý do như because, since, due to. Ví dụ: The flight was delayed due to bad weather. (Chuyến bay bị hoãn do thời tiết xấu.)
 ---
 
 ---
@@ -267,7 +363,18 @@ options:
   C: A laptop
   D: A signed form
 correct_answer: C
-explanation: Email yêu cầu <hl type="vocab">bring your laptop</hl>, nên đáp án là C.
+explanation: |
+  Dịch: Người tham dự được yêu cầu mang theo gì?
+
+  Chọn C vì: Email có câu <hl type="vocab">Please bring your laptop</hl> (Hãy mang theo máy tính xách tay của bạn).
+
+  Các đáp án:
+  - (A) Một cuốn sổ tay in sẵn → loại, không được nhắc đến.
+  - (B) Một bữa trưa đóng gói → loại, không được nhắc đến.
+  - (C) Một chiếc máy tính xách tay → ĐÚNG, khớp nguyên văn "your laptop".
+  - (D) Một mẫu đơn đã ký → loại, không được nhắc đến.
+
+  Ghi nhớ: <hl type="collocation">bring + vật</hl> = mang theo cái gì; <hl type="grammar">Please + động từ nguyên mẫu</hl> là câu yêu cầu lịch sự. Ví dụ: Please bring your ID to the interview. (Vui lòng mang theo giấy tờ tùy thân đến buổi phỏng vấn.)
 ---
 
 ---
@@ -282,7 +389,18 @@ options:
   C: Ask a colleague to attend instead
   D: Reschedule to December
 correct_answer: B
-explanation: Đoạn văn ghi rõ <hl type="time">let me know by Friday</hl>, nên đáp án là B.
+explanation: |
+  Dịch: Marcus nên làm gì nếu anh ấy không thể tham dự?
+
+  Chọn B vì: Đoạn văn ghi <hl type="grammar">If you cannot attend</hl>, <hl type="time">let me know by Friday</hl> (nếu bạn không thể tham dự, hãy báo cho tôi trước thứ Sáu). Người viết email là Dana, nên "me" chính là Dana.
+
+  Các đáp án:
+  - (A) Hủy buổi tập huấn cho mọi người → loại, đoạn văn không đề cập, và Marcus không có quyền đó.
+  - (B) Báo cho Dana trước thứ Sáu → ĐÚNG, khớp với "let me know by Friday".
+  - (C) Nhờ đồng nghiệp đi thay → loại, đoạn văn không nói đến.
+  - (D) Dời sang tháng 12 → loại, không có thông tin này.
+
+  Ghi nhớ: <hl type="collocation">let + người + know</hl> = báo cho ai biết; <hl type="time">by + mốc thời gian</hl> = trước hoặc muộn nhất vào thời điểm đó. Ví dụ: Let us know by noon if you plan to join. (Hãy báo cho chúng tôi trước trưa nếu bạn định tham gia.)
 ---
 
 ## Quy tắc quan trọng
@@ -293,17 +411,21 @@ explanation: Đoạn văn ghi rõ <hl type="time">let me know by Friday</hl>, n�
 4. Part 5 không có passage_id (mỗi câu độc lập). Part 6-7 luôn phải có passage_id.
 5. Luôn đánh số number cho từng câu hỏi theo đúng chuẩn TOEIC: Part 5 = 101-130, Part 6 = 131-146, Part 7 = 147-200 — không để app tự đếm, vì số hiển thị sẽ sai khi lọc theo Part.
 6. Gắn tags chuyên đề ngữ pháp cho câu hỏi Part 5-6 (vd [thi, chu-ngu-dong-tu]) để dùng được ở tab Học. Part 7 là đọc hiểu nên thường không cần tags.
-7. Trong explanation, bọc đúng cụm từ là dấu hiệu nhận biết bằng <hl type="...">...</hl>, chọn type phù hợp nhất trong bảng trên.
-8. Không thêm text nào ngoài các block --- ... ---.
+7. Mọi câu hỏi PHẢI có explanation đủ 4 phần: Dịch, Chọn X vì, Các đáp án, Ghi nhớ — theo đúng thứ tự và đúng nhãn. Không bỏ phần nào, không gộp phần.
+8. Trong phần "Các đáp án", phải nêu nghĩa (và loại từ với Part 5-6) của CẢ 4 đáp án và lý do loại cụ thể cho 3 đáp án sai.
+9. Trong explanation, bọc đúng cụm từ là dấu hiệu nhận biết bằng <hl type="...">...</hl>, chọn type phù hợp nhất trong bảng trên.
+10. Không dùng icon, emoji hay ký tự trang trí trong bất kỳ field nào.
+11. Không thêm text nào ngoài các block --- ... ---.
 
 ---
 # YÊU CẦU (điền vào phần dưới rồi gửi cho AI để generate bộ đề)
 
 Part muốn tạo: <5 / 6 / 7 / mix>
 Số lượng câu hỏi: <điền số lượng>
-Chuyên đề ngữ pháp muốn tập trung (nếu có): <vd: thì, hoà hợp chủ ngữ-động từ>
+Chuyên đề ngữ pháp muốn tập trung (nếu có): <vd: thì, hoà hợp chủ ngữ-động từ, từ loại>
 Chủ đề đoạn văn (nếu Part 6-7): <vd: email công việc, thông báo nội bộ, quảng cáo>
-Ghi chú thêm: <vd: độ khó, tránh trùng chủ đề đã có>`
+Ghi chú thêm: <vd: độ khó, tránh trùng chủ đề đã có>
+Lưu ý bắt buộc: explanation phải đủ 4 phần Dịch / Chọn X vì / Các đáp án / Ghi nhớ, không dùng icon.`
 
 export default function ToeicReadingHelpModal({ onClose }) {
   const [copied, setCopied] = useState(false)
@@ -393,8 +515,17 @@ export default function ToeicReadingHelpModal({ onClose }) {
             </TableBody>
           </Table>
 
+          <div className="border rounded-lg p-3.5 flex flex-col gap-1.5">
+            <p className="font-semibold text-foreground">Chuẩn viết explanation — đủ 4 phần, đúng thứ tự</p>
+            <p><strong>1. Dịch:</strong> dịch nghĩa tiếng Việt của câu (đã điền đáp án đúng).</p>
+            <p><strong>2. Chọn X vì:</strong> lý do chọn, chỉ rõ dấu hiệu nhận biết bằng <code>{'<hl>'}</code>.</p>
+            <p><strong>3. Các đáp án:</strong> liệt kê đủ 4 đáp án — nghĩa, loại từ (Part 5-6), lý do loại 3 đáp án sai.</p>
+            <p><strong>4. Ghi nhớ:</strong> cấu trúc/collocation liên quan, kèm ví dụ tiếng Anh có dịch.</p>
+            <p className="text-xs">Viết bằng <code>explanation: |</code> (dạng nhiều dòng), các phần cách nhau 1 dòng trống, không icon/emoji.</p>
+          </div>
+
           <p>
-            Đánh dấu dấu hiệu nhận biết trong <code>explanation</code> bằng <code>{'<hl type="...">...</hl>'}</code>{' '}
+            Đánh dấu dấu hiệu nhận biết ở phần "Chọn X vì" và "Ghi nhớ" bằng <code>{'<hl type="...">...</hl>'}</code>{' '}
             — giống sách luyện thi chữa bài bằng nhiều màu bút dạ quang, mỗi loại dấu hiệu 1 màu:
           </p>
           <Table>
@@ -416,7 +547,7 @@ export default function ToeicReadingHelpModal({ onClose }) {
             </TableBody>
           </Table>
           <p className="bg-muted border rounded-lg px-3.5 py-2.5">
-            Ví dụ: Đáp án B đúng vì <ExplanationText text='<hl type="time">last quarter</hl>' /> là dấu hiệu
+            Ví dụ phần "Chọn X vì": Chọn B vì câu chưa có động từ chính, và <ExplanationText text='<hl type="time">last quarter</hl>' /> là dấu hiệu
             thời gian quá khứ, nên động từ phải chia <ExplanationText text='<hl type="grammar">quá khứ đơn</hl>' />.
           </p>
 

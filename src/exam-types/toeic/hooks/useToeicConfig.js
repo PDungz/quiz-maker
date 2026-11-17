@@ -19,6 +19,10 @@ export function useToeicConfig(saved = {}) {
   // Chỉ áp dụng khi examStyle = 'practice': bật đồng hồ tham khảo, hết giờ KHÔNG tự nộp bài
   // (khác với Thi thử luôn bật timer và tự nộp khi hết giờ).
   const [practiceTimerEnabled, setPracticeTimerEnabled] = useState(() => saved.practiceTimerEnabled ?? false)
+  // Chỉ áp dụng ở tab Học (practiceMode = 'topic') cho câu hỏi Listening (Part 1-4): 'choice' là
+  // click chọn đáp án như thường, 'dictation' là nghe rồi gõ lại nguyên văn câu đã nghe để tự
+  // chấm so với transcript — luyện nghe chép thay vì chỉ luyện chọn đáp án.
+  const [listeningAnswerMode, setListeningAnswerMode] = useState(() => saved.listeningAnswerMode ?? 'choice') // 'choice' | 'dictation'
 
   // selectedParts/selectedTags rỗng nghĩa là "không lọc gì" = dùng tất cả. Bỏ chọn 1 item lúc
   // đang ở trạng thái đó phải khởi tạo lại thành "tất cả trừ item này", không phải chỉ thêm
@@ -40,5 +44,6 @@ export function useToeicConfig(saved = {}) {
     timerMinutes, setTimerMinutes,
     splitByPart, setSplitByPart,
     practiceTimerEnabled, setPracticeTimerEnabled,
+    listeningAnswerMode, setListeningAnswerMode,
   }
 }

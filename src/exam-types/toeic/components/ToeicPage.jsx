@@ -35,7 +35,7 @@ export default function ToeicPage() {
   const { allQuestions, setAllQuestions, allPassages, loadFiles, files, setFiles, removeFile, clearAll: clearFileLibrary } = useFileLibrary(saved, { parseFn: parseMarkdownWithPassages })
   // Audio/ảnh cho Listening (Part 1-4) — sống riêng trong phiên làm việc, KHÔNG lưu vào session/
   // export vì object URL (blob:) chết khi reload trang, không thể phục hồi được qua localStorage.
-  const { audioByNumber, imageByNumber, audioFolderName, loadAudioFolder, clearAudioLibrary } = useAudioLibrary()
+  const { audioByNumber, imageByNumber, audioFolderName, unmatchedFiles, loadAudioFolder, clearAudioLibrary } = useAudioLibrary()
   const fileRef = useRef()
   const audioFolderRef = useRef()
   const importResultRef = useRef()
@@ -58,6 +58,7 @@ export default function ToeicPage() {
     selectedTags, setSelectedTags, toggleTag,
     timerMinutes, setTimerMinutes, splitByPart, setSplitByPart,
     practiceTimerEnabled, setPracticeTimerEnabled,
+    listeningAnswerMode, setListeningAnswerMode,
   } = config
   const isTopicMode = practiceMode === 'topic'
   // Học lọc theo tag (chuyên đề ngữ pháp, không có khái niệm Part) không có Part để chia tab/
@@ -224,7 +225,7 @@ export default function ToeicPage() {
     const t = setTimeout(() => {
       saveSession({
         allQuestions, files,
-        practiceMode, topicFilterBy, selectedTags,
+        practiceMode, topicFilterBy, selectedTags, listeningAnswerMode,
         examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
         timerStarted, timerPaused, secondsLeft,
         questions, answers, revealed, submitted,
@@ -235,7 +236,7 @@ export default function ToeicPage() {
     return () => clearTimeout(t)
   }, [
     allQuestions, files,
-    practiceMode, topicFilterBy, selectedTags,
+    practiceMode, topicFilterBy, selectedTags, listeningAnswerMode,
     examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
     timerStarted, timerPaused, secondsLeft,
     questions, answers, revealed, submitted,
@@ -245,6 +246,16 @@ export default function ToeicPage() {
   const needsStart = timerEnabled && questions.length > 0 && !timerStarted && !allDone
   // Thi thử: hết giờ khoá bài luôn (tự nộp). Luyện tập: hết giờ chỉ cảnh báo, vẫn làm tiếp được.
   const locked = submitted || (timeUp && autoSubmitOnTimeUp)
+
+  // Chế độ "Nghe & gõ lại": kết quả đúng/sai đã được chấm xong ở TranscriptCheckInput (so với
+  // transcript), nên ở đây chỉ cần ghi nhận answers[i] = đúng đáp án rồi reveal trực tiếp — không
+  // gọi confirmAt vì nó dựa vào answers[i] đã có trong state (stale ngay sau setAnswers), còn ở
+  // đây mình đã biết chắc là đúng nên không cần đi qua guard ans.size của nó.
+  const confirmDictationAt = (i, correctAnswer) => {
+    if (locked || timeUp) return
+    setAnswers(prev => ({ ...prev, [i]: new Set(correctAnswer) }))
+    setRevealed(prev => ({ ...prev, [i]: true }))
+  }
 
   const { totalCorrect, totalSkipped, maxPoint, earnedPoint, pct, passed } = questions.length
     ? computeScoring({ questions, answers, scoreMode: 'count', pointMode: 'fixed', customPoints: {}, passPct: 70 })
@@ -425,6 +436,8 @@ export default function ToeicPage() {
                     toggleOptionAt={(i, key) => toggleOptionAt(i, key, { timeUp })}
                     confirmAt={(i) => confirmAt(i, { timeUp })}
                     skipAt={(i) => skipAt(i, { timeUp })}
+                    dictationMode={isTopicMode && listeningAnswerMode === 'dictation'}
+                    confirmDictationAt={confirmDictationAt}
                   />
                 )
               })}
@@ -491,8 +504,18 @@ export default function ToeicPage() {
               onChange={e => { loadAudioFolder(e.target.files); e.target.value = '' }} />
           </Button>
           {audioFolderName && (
-            <div className="text-[0.76rem] text-muted-foreground -mt-1">
-              Đã nạp audio/ảnh từ: <strong>{audioFolderName}</strong>
+            <div className="text-[0.76rem] text-muted-foreground -mt-1 flex flex-col gap-1">
+              <div>
+                Đã nạp từ <strong>{audioFolderName}</strong>: {Object.keys(audioByNumber).length} audio,{' '}
+                {Object.keys(imageByNumber).length} ảnh
+                {unmatchedFiles.length > 0 && <>, {unmatchedFiles.length} file không khớp tên</>}
+              </div>
+              {unmatchedFiles.length > 0 && (
+                <div className="text-destructive">
+                  ⚠️ Không khớp: {unmatchedFiles.slice(0, 8).join(', ')}
+                  {unmatchedFiles.length > 8 && ` +${unmatchedFiles.length - 8} file`}
+                </div>
+              )}
             </div>
           )}
           <Button variant="outline" className="w-full" onClick={() => importResultRef.current.click()}>
@@ -576,6 +599,8 @@ export default function ToeicPage() {
             setTimerMinutes={setTimerMinutes}
             practiceTimerEnabled={practiceTimerEnabled}
             setPracticeTimerEnabled={setPracticeTimerEnabled}
+            listeningAnswerMode={listeningAnswerMode}
+            setListeningAnswerMode={setListeningAnswerMode}
             poolSize={poolSize}
             onBuildQuiz={buildQuiz}
             hasQuestions={questions.length > 0}

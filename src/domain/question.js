@@ -21,4 +21,7 @@
  * @property {number|null} point
  * @property {string} [_sourceFile]
  * @property {string} [passageId] - reserved for future exam types; undefined today
+ * @property {number|null} [part] - TOEIC part number (1-7); null for plain quiz
+ * @property {number|null} [number] - real exam question number (e.g. 101-200); null for plain quiz
+ * @property {string} [transcript] - TOEIC Listening audio transcript, used by "Nghe & gõ lại" dictation mode
  */

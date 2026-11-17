@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import OptionItem from '@/components/OptionItem'
 import { Button } from '@/components/ui/button'
 import { ExplanationText } from '../../../features/results'
+import TranscriptCheckInput from './TranscriptCheckInput'
 
 // 1 đoạn văn/ảnh/audio (passage) + TOÀN BỘ câu hỏi thuộc nó, bọc chung trong 1 khung ngoài duy
 // nhất — đặc trưng TOEIC Part 6-7 (1 đoạn văn) và Part 1-4 (1 ảnh hoặc 1 audio dùng chung).
@@ -13,6 +14,7 @@ import { ExplanationText } from '../../../features/results'
 export default function PassageQuestionGroup({
   passage, questions, questionIndexOf, answers, revealed, locked, partHeading,
   getOptionStatusAt, toggleOptionAt, confirmAt, skipAt, getAudioUrl, getImageUrl,
+  dictationMode = false, confirmDictationAt,
 }) {
   const groupAudioUrl = getAudioUrl?.(questions[0])
 
@@ -23,6 +25,9 @@ export default function PassageQuestionGroup({
     const isMulti = q.type === 'multiple_choice'
     const perQuestionAudioUrl = questions.length === 1 ? null : getAudioUrl?.(q)
     const imageUrl = getImageUrl?.(q)
+    // Chế độ nghe & gõ lại chỉ áp dụng cho câu Listening (part 1-4) có sẵn transcript — câu
+    // Reading hoặc câu thiếu transcript vẫn rơi về chọn đáp án như thường.
+    const isDictation = dictationMode && q.part >= 1 && q.part <= 4 && !!q.transcript
     return (
       <div key={i} className="flex flex-col gap-3 border rounded-lg p-3.5 bg-background">
         {isMulti && (
@@ -37,19 +42,32 @@ export default function PassageQuestionGroup({
         {perQuestionAudioUrl && (
           <audio controls src={perQuestionAudioUrl} className="w-full h-10" />
         )}
-        <div className="flex flex-col gap-2">
-          {Object.entries(q.options).map(([key, val]) => (
-            <OptionItem
-              key={key}
-              optionKey={key}
-              text={val}
-              status={getOptionStatusAt(i, key)}
-              disabled={answeredQ || locked}
-              onClick={() => toggleOptionAt(i, key)}
+        {isDictation ? (
+          answeredQ ? (
+            <div className="rounded-lg border px-3.5 py-2.5 text-sm bg-muted">
+              <p>Transcript: <strong>{q.transcript}</strong></p>
+            </div>
+          ) : (
+            <TranscriptCheckInput
+              transcript={q.transcript}
+              onChecked={(ok) => (ok ? confirmDictationAt(i, q.correct_answer) : skipAt(i))}
             />
-          ))}
-        </div>
-        {!locked && !answeredQ && (
+          )
+        ) : (
+          <div className="flex flex-col gap-2">
+            {Object.entries(q.options).map(([key, val]) => (
+              <OptionItem
+                key={key}
+                optionKey={key}
+                text={val}
+                status={getOptionStatusAt(i, key)}
+                disabled={answeredQ || locked}
+                onClick={() => toggleOptionAt(i, key)}
+              />
+            ))}
+          </div>
+        )}
+        {!locked && !answeredQ && !isDictation && (
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => skipAt(i)}>Bỏ qua</Button>
             <Button size="sm" onClick={() => confirmAt(i)} disabled={!ans.size}>Xác nhận</Button>
