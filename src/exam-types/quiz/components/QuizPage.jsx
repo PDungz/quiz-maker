@@ -339,7 +339,7 @@ export default function QuizPage() {
       {/* ══ MAIN: câu hỏi bên trái ══ */}
       <main
         id="quiz-main-content"
-        className={`fixed top-header-h bottom-0 left-0 overflow-y-auto flex flex-col items-center px-3.5 md:px-8 pt-4 md:pt-10 pb-8 md:pb-20 transition-[right] duration-200 right-0 ${
+        className={`fixed top-header-h left-0 h-[calc(100dvh-var(--spacing-header-h))] overflow-y-auto flex flex-col items-center px-3.5 md:px-8 pt-4 md:pt-10 pb-8 md:pb-20 transition-[right] duration-200 right-0 ${
           sidebarCollapsed ? '' : 'md:right-sidebar-w'
         }`}
       >
@@ -493,7 +493,7 @@ export default function QuizPage() {
         />
       )}
       <aside
-        className={`w-[min(86vw,360px)] max-w-[360px] md:w-sidebar-w md:max-w-none shrink-0 bg-card border-l flex flex-col fixed top-header-h right-0 bottom-0 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 transition-transform duration-200 shadow-[-8px_0_24px_rgba(0,0,0,0.35)] md:shadow-none z-[60] md:z-auto ${
+        className={`w-[min(86vw,360px)] max-w-[360px] md:w-sidebar-w md:max-w-none shrink-0 bg-card border-l flex flex-col fixed top-header-h right-0 h-[calc(100dvh-var(--spacing-header-h))] overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 transition-transform duration-200 shadow-[-8px_0_24px_rgba(0,0,0,0.35)] md:shadow-none z-[60] md:z-auto ${
           sidebarCollapsed ? 'translate-x-full pointer-events-none' : 'translate-x-0'
         }`}
       >

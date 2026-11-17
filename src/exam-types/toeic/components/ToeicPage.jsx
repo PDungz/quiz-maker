@@ -455,7 +455,7 @@ export default function ToeicPage() {
         />
       )}
       <aside
-        className={`w-[min(86vw,360px)] max-w-[360px] md:w-sidebar-w md:max-w-none shrink-0 bg-card border-l flex flex-col fixed top-header-h right-0 bottom-0 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 transition-transform duration-200 shadow-[-8px_0_24px_rgba(0,0,0,0.35)] md:shadow-none z-[60] md:z-auto ${
+        className={`w-[min(86vw,360px)] max-w-[360px] md:w-sidebar-w md:max-w-none shrink-0 bg-card border-l flex flex-col fixed top-header-h right-0 h-[calc(100dvh-var(--spacing-header-h))] overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 transition-transform duration-200 shadow-[-8px_0_24px_rgba(0,0,0,0.35)] md:shadow-none z-[60] md:z-auto ${
           sidebarCollapsed ? 'translate-x-full pointer-events-none' : 'translate-x-0'
         }`}
       >

@@ -18,7 +18,7 @@ export default function ResultSidebarSummary({
       <Separator className="mt-2" />
       <Card>
         <CardContent className="flex flex-col items-center gap-2 text-center">
-          <div className={`text-3xl font-extrabold ${passed ? 'text-success' : 'text-destructive'}`}>{pct}%</div>
+          <div className={`text-3xl font-extrabold leading-tight py-0.5 ${passed ? 'text-success' : 'text-destructive'}`}>{pct}%</div>
           <Badge variant={passed ? 'default' : 'destructive'} className={passed ? 'bg-success text-success-foreground' : ''}>
             {passed ? '✓ Đạt' : '✗ Không đạt'} (ngưỡng {passPct}%)
           </Badge>
