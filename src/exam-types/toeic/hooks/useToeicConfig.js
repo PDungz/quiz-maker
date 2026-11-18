@@ -27,6 +27,9 @@ export function useToeicConfig(saved = {}) {
   // và text đáp án của câu Listening (Part 1-4), giống đúng thi thật (chỉ nghe audio, không đọc
   // được gợi ý từ chữ trên màn hình). Ở chế độ chọn đáp án vẫn giữ nút A/B/C/D để bấm, chỉ ẩn text.
   const [hideListeningText, setHideListeningText] = useState(() => saved.hideListeningText ?? false)
+  // Ngưỡng % số từ khớp để tính 1 dòng dictation là "đúng" (xem transcriptMatch.js) — gõ thiếu/sai
+  // vài từ trong câu dài vẫn đạt nếu đủ ngưỡng, không bắt khớp tuyệt đối 100% như trước.
+  const [dictationMatchThreshold, setDictationMatchThreshold] = useState(() => saved.dictationMatchThreshold ?? 80)
 
   // selectedParts/selectedTags rỗng nghĩa là "không lọc gì" = dùng tất cả. Bỏ chọn 1 item lúc
   // đang ở trạng thái đó phải khởi tạo lại thành "tất cả trừ item này", không phải chỉ thêm
@@ -50,5 +53,6 @@ export function useToeicConfig(saved = {}) {
     practiceTimerEnabled, setPracticeTimerEnabled,
     listeningAnswerMode, setListeningAnswerMode,
     hideListeningText, setHideListeningText,
+    dictationMatchThreshold, setDictationMatchThreshold,
   }
 }

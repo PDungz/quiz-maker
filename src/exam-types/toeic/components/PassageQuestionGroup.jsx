@@ -14,7 +14,7 @@ import DictationFlow from './DictationFlow'
 export default function PassageQuestionGroup({
   passage, questions, questionIndexOf, answers, revealed, locked, partHeading,
   getOptionStatusAt, toggleOptionAt, confirmAt, skipAt, getAudioUrl, getImageUrl,
-  dictationMode = false, hideListeningText = false, confirmDictationAt,
+  dictationMode = false, hideListeningText = false, dictationMatchThreshold = 80, confirmDictationAt,
 }) {
   const groupAudioUrl = getAudioUrl?.(questions[0])
 
@@ -61,6 +61,7 @@ export default function PassageQuestionGroup({
             transcript={q.transcript}
             part={q.part}
             hideOptionsText={hideOptionsText}
+            matchThreshold={dictationMatchThreshold}
             onDone={() => confirmDictationAt(i, q.correct_answer)}
           />
         ) : (

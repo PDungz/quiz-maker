@@ -60,6 +60,7 @@ export default function ToeicPage() {
     practiceTimerEnabled, setPracticeTimerEnabled,
     listeningAnswerMode, setListeningAnswerMode,
     hideListeningText, setHideListeningText,
+    dictationMatchThreshold, setDictationMatchThreshold,
   } = config
   const isTopicMode = practiceMode === 'topic'
   // Học lọc theo tag (chuyên đề ngữ pháp, không có khái niệm Part) không có Part để chia tab/
@@ -226,7 +227,7 @@ export default function ToeicPage() {
     const t = setTimeout(() => {
       saveSession({
         allQuestions, files,
-        practiceMode, topicFilterBy, selectedTags, listeningAnswerMode, hideListeningText,
+        practiceMode, topicFilterBy, selectedTags, listeningAnswerMode, hideListeningText, dictationMatchThreshold,
         examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
         timerStarted, timerPaused, secondsLeft,
         questions, answers, revealed, submitted,
@@ -237,7 +238,7 @@ export default function ToeicPage() {
     return () => clearTimeout(t)
   }, [
     allQuestions, files,
-    practiceMode, topicFilterBy, selectedTags, listeningAnswerMode, hideListeningText,
+    practiceMode, topicFilterBy, selectedTags, listeningAnswerMode, hideListeningText, dictationMatchThreshold,
     examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
     timerStarted, timerPaused, secondsLeft,
     questions, answers, revealed, submitted,
@@ -439,6 +440,7 @@ export default function ToeicPage() {
                     skipAt={(i) => skipAt(i, { timeUp })}
                     dictationMode={isTopicMode && listeningAnswerMode === 'dictation'}
                     hideListeningText={hideListeningText}
+                    dictationMatchThreshold={dictationMatchThreshold}
                     confirmDictationAt={confirmDictationAt}
                   />
                 )
@@ -605,6 +607,8 @@ export default function ToeicPage() {
             setListeningAnswerMode={setListeningAnswerMode}
             hideListeningText={hideListeningText}
             setHideListeningText={setHideListeningText}
+            dictationMatchThreshold={dictationMatchThreshold}
+            setDictationMatchThreshold={setDictationMatchThreshold}
             poolSize={poolSize}
             onBuildQuiz={buildQuiz}
             hasQuestions={questions.length > 0}

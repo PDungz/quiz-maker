@@ -35,6 +35,7 @@ export default function ToeicSetupSidebar({
   practiceTimerEnabled, setPracticeTimerEnabled,
   listeningAnswerMode, setListeningAnswerMode,
   hideListeningText, setHideListeningText,
+  dictationMatchThreshold, setDictationMatchThreshold,
   poolSize, onBuildQuiz, hasQuestions,
 }) {
   const parts = Object.keys(partCounts).map(Number).sort((a, b) => a - b)
@@ -87,6 +88,20 @@ export default function ToeicSetupSidebar({
                 <Checkbox checked={hideListeningText} onCheckedChange={v => setHideListeningText(!!v)} />
                 Ẩn chữ câu hỏi &amp; đáp án — giống thi thật, chỉ nghe audio
               </Label>
+              {listeningAnswerMode === 'dictation' && (
+                <div className="flex flex-col gap-2 pt-1">
+                  <FieldLabel>Ngưỡng tính đúng khi gõ lại</FieldLabel>
+                  <Select value={String(dictationMatchThreshold)} onValueChange={v => setDictationMatchThreshold(+v)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="100">100% — phải khớp tuyệt đối từng từ</SelectItem>
+                      <SelectItem value="90">90% — cho sai lệch rất ít</SelectItem>
+                      <SelectItem value="80">80% — cho thiếu/sai vài từ (khuyến nghị)</SelectItem>
+                      <SelectItem value="70">70% — dễ hơn, chỉ cần đúng ý chính</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
 

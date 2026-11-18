@@ -9,7 +9,7 @@ import TranscriptCheckInput from './TranscriptCheckInput'
 // 2) Nghe lần 2 → gõ lại transcript (TranscriptCheckInput), chỉ hiện sau khi xong bước 1.
 // Chọn sai ở bước 1 vẫn cho làm tiếp bước 2 bình thường — 2 bước độc lập, không chặn nhau.
 // Chỉ sau khi xong CẢ 2 bước mới coi câu là hoàn thành (gọi onDone để hiện giải thích).
-export default function DictationFlow({ options, correctAnswer, transcript, part, hideOptionsText, onDone }) {
+export default function DictationFlow({ options, correctAnswer, transcript, part, hideOptionsText, matchThreshold, onDone }) {
   const [selected, setSelected] = useState(null)
   const [step1Checked, setStep1Checked] = useState(false)
   const step1Correct = step1Checked && selected === correctAnswer
@@ -46,7 +46,7 @@ export default function DictationFlow({ options, correctAnswer, transcript, part
       {step1Checked && (
         <div className="flex flex-col gap-2 border-t pt-3">
           <p className="text-xs text-muted-foreground font-medium">Bước 2 — Nghe lần 2, gõ lại nguyên văn</p>
-          <TranscriptCheckInput transcript={transcript} part={part} onChecked={() => onDone?.()} />
+          <TranscriptCheckInput transcript={transcript} part={part} matchThreshold={matchThreshold} onChecked={() => onDone?.()} />
         </div>
       )}
     </div>
