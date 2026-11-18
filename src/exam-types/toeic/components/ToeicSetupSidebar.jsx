@@ -20,6 +20,32 @@ const PART_LABEL = {
   7: 'Part 7 — Đọc hiểu',
 }
 
+// Dùng chung cho cả prop `items` (để Select.Value hiện đúng label ngay từ đầu, không phải mở
+// dropdown lần nào trước đó base-ui mới ghi nhớ được label) và để map ra SelectItem bên dưới —
+// viết 1 chỗ duy nhất, tránh lặp lại text label ở 2 nơi dễ bị lệch nhau khi sửa sau này.
+const TOPIC_FILTER_LABELS = {
+  part: 'Part — luyện riêng 1 dạng (vd chỉ Part 2)',
+  tag: 'Chuyên đề ngữ pháp — luyện riêng 1 điểm (vd chỉ "thì")',
+}
+const LISTENING_ANSWER_MODE_LABELS = {
+  choice: 'Chọn đáp án — như bình thường',
+  dictation: 'Nghe & gõ lại — luyện nghe chép, tự chấm theo transcript',
+}
+const DICTATION_THRESHOLD_LABELS = {
+  100: '100% — phải khớp tuyệt đối từng từ',
+  90: '90% — cho sai lệch rất ít',
+  80: '80% — cho thiếu/sai vài từ (khuyến nghị)',
+  70: '70% — dễ hơn, chỉ cần đúng ý chính',
+}
+const EXAM_STYLE_LABELS = {
+  practice: 'Luyện tập — xem đáp án ngay, không giới hạn giờ',
+  test: 'Thi thử — mô phỏng thi thật, chấm sau khi nộp',
+}
+const DISPLAY_MODE_LABELS = {
+  split: 'Chia theo tab Part',
+  all: 'Cuộn tất cả, không chia Part',
+}
+
 // Cấu hình riêng cho TOEIC: chọn Part/chuyên đề có sẵn trong file đã nạp (practiceMode do
 // ToeicPage quyết định qua tab "Làm đề / Ôn luyện" ngay đầu sidebar, không nằm ở đây) + chọn
 // Luyện tập/Thi thử + hiển thị. Phần còn lại (timer, chấm điểm, retry...) tái dùng nguyên
@@ -64,11 +90,12 @@ export default function ToeicSetupSidebar({
           {isTopicMode && (
             <div className="flex flex-col gap-2 pb-1">
               <FieldLabel>Lọc theo</FieldLabel>
-              <Select value={topicFilterBy} onValueChange={setTopicFilterBy}>
+              <Select value={topicFilterBy} onValueChange={setTopicFilterBy} items={TOPIC_FILTER_LABELS}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="part">Part — luyện riêng 1 dạng (vd chỉ Part 2)</SelectItem>
-                  <SelectItem value="tag">Chuyên đề ngữ pháp — luyện riêng 1 điểm (vd chỉ "thì")</SelectItem>
+                  {Object.entries(TOPIC_FILTER_LABELS).map(([v, label]) => (
+                    <SelectItem key={v} value={v}>{label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -77,11 +104,12 @@ export default function ToeicSetupSidebar({
           {showListeningAnswerMode && (
             <div className="flex flex-col gap-2 pb-1">
               <FieldLabel>Cách trả lời (Listening)</FieldLabel>
-              <Select value={listeningAnswerMode} onValueChange={setListeningAnswerMode}>
+              <Select value={listeningAnswerMode} onValueChange={setListeningAnswerMode} items={LISTENING_ANSWER_MODE_LABELS}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="choice">Chọn đáp án — như bình thường</SelectItem>
-                  <SelectItem value="dictation">Nghe & gõ lại — luyện nghe chép, tự chấm theo transcript</SelectItem>
+                  {Object.entries(LISTENING_ANSWER_MODE_LABELS).map(([v, label]) => (
+                    <SelectItem key={v} value={v}>{label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Label className="font-normal text-muted-foreground text-xs">
@@ -91,13 +119,12 @@ export default function ToeicSetupSidebar({
               {listeningAnswerMode === 'dictation' && (
                 <div className="flex flex-col gap-2 pt-1">
                   <FieldLabel>Ngưỡng tính đúng khi gõ lại</FieldLabel>
-                  <Select value={String(dictationMatchThreshold)} onValueChange={v => setDictationMatchThreshold(+v)}>
+                  <Select value={String(dictationMatchThreshold)} onValueChange={v => setDictationMatchThreshold(+v)} items={DICTATION_THRESHOLD_LABELS}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="100">100% — phải khớp tuyệt đối từng từ</SelectItem>
-                      <SelectItem value="90">90% — cho sai lệch rất ít</SelectItem>
-                      <SelectItem value="80">80% — cho thiếu/sai vài từ (khuyến nghị)</SelectItem>
-                      <SelectItem value="70">70% — dễ hơn, chỉ cần đúng ý chính</SelectItem>
+                      {Object.entries(DICTATION_THRESHOLD_LABELS).map(([v, label]) => (
+                        <SelectItem key={v} value={v}>{label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -151,11 +178,12 @@ export default function ToeicSetupSidebar({
         <TabsContent value="mode" className="flex flex-col gap-4 pt-3">
           <div className="flex flex-col gap-2">
             <FieldLabel>Hình thức</FieldLabel>
-            <Select value={examStyle} onValueChange={setExamStyle}>
+            <Select value={examStyle} onValueChange={setExamStyle} items={EXAM_STYLE_LABELS}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="practice">Luyện tập — xem đáp án ngay, không giới hạn giờ</SelectItem>
-                <SelectItem value="test">Thi thử — mô phỏng thi thật, chấm sau khi nộp</SelectItem>
+                {Object.entries(EXAM_STYLE_LABELS).map(([v, label]) => (
+                  <SelectItem key={v} value={v}>{label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -189,11 +217,12 @@ export default function ToeicSetupSidebar({
 
         <TabsContent value="display" className="flex flex-col gap-2 pt-3">
           <FieldLabel>Hiển thị danh sách câu hỏi</FieldLabel>
-          <Select value={splitByPart ? 'split' : 'all'} onValueChange={v => setSplitByPart(v === 'split')}>
+          <Select value={splitByPart ? 'split' : 'all'} onValueChange={v => setSplitByPart(v === 'split')} items={DISPLAY_MODE_LABELS}>
             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="split">Chia theo tab Part</SelectItem>
-              <SelectItem value="all">Cuộn tất cả, không chia Part</SelectItem>
+              {Object.entries(DISPLAY_MODE_LABELS).map(([v, label]) => (
+                <SelectItem key={v} value={v}>{label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </TabsContent>

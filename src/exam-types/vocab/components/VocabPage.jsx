@@ -26,6 +26,13 @@ const REVIEW_QUALITY = {
 const QUALITY_LABEL = { forgot: 'Quên', hard: 'Khó', good: 'Bình thường', easy: 'Dễ' }
 const QUALITY_BADGE_VARIANT = { forgot: 'destructive', hard: 'outline', good: 'secondary', easy: 'default' }
 
+// Dùng chung cho cả prop `items` của Select (để Select.Value hiện đúng label ngay từ đầu, không
+// phải mở dropdown lần nào trước đó base-ui mới ghi nhớ được label) và để map ra SelectItem.
+const STUDY_MODE_LABELS = {
+  flip: 'Lật thẻ — xem nghĩa rồi tự đánh giá',
+  type: 'Gõ tay — gõ đúng từ/nghĩa, app tự chấm',
+}
+
 function formatIntervalLabel(progress) {
   if (progress.intervalDays === 0) return 'ôn lại sau 10 phút'
   if (progress.intervalDays === 1) return 'ôn lại sau 1 ngày'
@@ -146,11 +153,12 @@ export default function VocabPage() {
                 </div>
                 <div className="flex flex-col gap-2 max-w-xs">
                   <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kiểu học</span>
-                  <Select value={studyMode} onValueChange={setStudyMode}>
+                  <Select value={studyMode} onValueChange={setStudyMode} items={STUDY_MODE_LABELS}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="flip">Lật thẻ — xem nghĩa rồi tự đánh giá</SelectItem>
-                      <SelectItem value="type">Gõ tay — gõ đúng từ/nghĩa, app tự chấm</SelectItem>
+                      {Object.entries(STUDY_MODE_LABELS).map(([v, label]) => (
+                        <SelectItem key={v} value={v}>{label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

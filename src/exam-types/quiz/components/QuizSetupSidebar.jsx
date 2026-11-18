@@ -10,6 +10,14 @@ function FieldLabel({ children }) {
   return <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</Label>
 }
 
+// Dùng chung cho cả prop `items` của Select (để Select.Value hiện đúng label ngay từ đầu, không
+// phải mở dropdown lần nào trước đó base-ui mới ghi nhớ được label) và để map ra SelectItem bên
+// dưới — viết 1 chỗ duy nhất, tránh lặp lại text label ở 2 nơi dễ bị lệch nhau khi sửa sau này.
+const MODE_LABELS = { shuffle: 'Xáo trộn (random)', category: 'Theo thứ tự trong file' }
+const REVEAL_MODE_LABELS = { instant: 'Chấm ngay sau mỗi câu', end: 'Chấm sau khi hoàn thành tất cả' }
+const SCORE_MODE_LABELS = { count: 'Đếm số câu đúng', point: 'Tính theo thang điểm (point)' }
+const POINT_MODE_LABELS = { fixed: 'Mỗi câu 1 điểm', difficulty: 'Theo độ khó' }
+
 // Form cấu hình trước khi làm bài, riêng cho loại đề thi Quiz: chủ đề, thứ tự, số câu,
 // timer + thi thật, thời điểm chấm điểm, khoá câu trước, cách tính điểm, tỉ lệ đậu.
 //
@@ -59,11 +67,12 @@ export default function QuizSetupSidebar({
 
       <div className="flex flex-col gap-2">
         <FieldLabel>Thứ tự</FieldLabel>
-        <Select value={mode} onValueChange={setMode}>
+        <Select value={mode} onValueChange={setMode} items={MODE_LABELS}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="shuffle">Xáo trộn (random)</SelectItem>
-            <SelectItem value="category">Theo thứ tự trong file</SelectItem>
+            {Object.entries(MODE_LABELS).map(([v, label]) => (
+              <SelectItem key={v} value={v}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -108,11 +117,12 @@ export default function QuizSetupSidebar({
 
       <div className="flex flex-col gap-2">
         <FieldLabel>Thời điểm chấm điểm</FieldLabel>
-        <Select value={revealMode} onValueChange={setRevealMode} disabled={examMode}>
+        <Select value={revealMode} onValueChange={setRevealMode} disabled={examMode} items={REVEAL_MODE_LABELS}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="instant">Chấm ngay sau mỗi câu</SelectItem>
-            <SelectItem value="end">Chấm sau khi hoàn thành tất cả</SelectItem>
+            {Object.entries(REVEAL_MODE_LABELS).map(([v, label]) => (
+              <SelectItem key={v} value={v}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {examMode && (
@@ -129,11 +139,12 @@ export default function QuizSetupSidebar({
 
       <div className="flex flex-col gap-2">
         <FieldLabel>Cách tính điểm</FieldLabel>
-        <Select value={scoreMode} onValueChange={setScoreMode}>
+        <Select value={scoreMode} onValueChange={setScoreMode} items={SCORE_MODE_LABELS}>
           <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="count">Đếm số câu đúng</SelectItem>
-            <SelectItem value="point">Tính theo thang điểm (point)</SelectItem>
+            {Object.entries(SCORE_MODE_LABELS).map(([v, label]) => (
+              <SelectItem key={v} value={v}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -141,11 +152,12 @@ export default function QuizSetupSidebar({
       {scoreMode === 'point' && (
         <div className="flex flex-col gap-2">
           <FieldLabel>Point mặc định (khi file không set)</FieldLabel>
-          <Select value={pointMode} onValueChange={setPointMode}>
+          <Select value={pointMode} onValueChange={setPointMode} items={POINT_MODE_LABELS}>
             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="fixed">Mỗi câu 1 điểm</SelectItem>
-              <SelectItem value="difficulty">Theo độ khó</SelectItem>
+              {Object.entries(POINT_MODE_LABELS).map(([v, label]) => (
+                <SelectItem key={v} value={v}>{label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {pointMode === 'difficulty' && (
