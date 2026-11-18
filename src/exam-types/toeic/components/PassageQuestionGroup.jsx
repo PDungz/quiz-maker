@@ -14,7 +14,7 @@ import TranscriptCheckInput from './TranscriptCheckInput'
 export default function PassageQuestionGroup({
   passage, questions, questionIndexOf, answers, revealed, locked, partHeading,
   getOptionStatusAt, toggleOptionAt, confirmAt, skipAt, getAudioUrl, getImageUrl,
-  dictationMode = false, confirmDictationAt,
+  dictationMode = false, hideListeningText = false, confirmDictationAt,
 }) {
   const groupAudioUrl = getAudioUrl?.(questions[0])
 
@@ -28,6 +28,13 @@ export default function PassageQuestionGroup({
     // Chế độ nghe & gõ lại chỉ áp dụng cho câu Listening (part 1-4) có sẵn transcript — câu
     // Reading hoặc câu thiếu transcript vẫn rơi về chọn đáp án như thường.
     const isDictation = dictationMode && q.part >= 1 && q.part <= 4 && !!q.transcript
+    const isListeningPart = q.part >= 1 && q.part <= 4
+    // Ẩn chữ câu hỏi/đáp án của câu Listening trong lúc chưa trả lời — giống đúng thi thật (chỉ
+    // nghe audio, không đọc được gợi ý từ chữ trên màn hình). Độc lập với dictation: áp dụng cả
+    // khi đang ở chế độ chọn đáp án (vẫn bấm được nút A/B/C/D, chỉ ẩn text) lẫn dictation. Sau khi
+    // trả lời/hết giờ thì luôn hiện lại để đối chiếu.
+    const hideQuestionText = isListeningPart && hideListeningText && !answeredQ
+    const hideOptionsText = isListeningPart && hideListeningText && !answeredQ
     return (
       <div key={i} className="flex flex-col gap-3 border rounded-lg p-3.5 bg-background">
         {isMulti && (
@@ -35,7 +42,12 @@ export default function PassageQuestionGroup({
             <Badge variant="outline">Nhiều đáp án</Badge>
           </div>
         )}
-        <p className="font-medium whitespace-pre-wrap">{q.number ?? i + 1}. {q.question}</p>
+        {!hideQuestionText && (
+          <p className="font-medium whitespace-pre-wrap">{q.number ?? i + 1}. {q.question}</p>
+        )}
+        {hideQuestionText && (
+          <p className="font-medium text-muted-foreground italic">{q.number ?? i + 1}. (Nghe audio để biết câu hỏi)</p>
+        )}
         {imageUrl && (
           <img src={imageUrl} alt={`Câu ${q.number ?? i + 1}`} className="rounded-lg border max-h-80 object-contain" />
         )}
@@ -50,6 +62,7 @@ export default function PassageQuestionGroup({
           ) : (
             <TranscriptCheckInput
               transcript={q.transcript}
+              part={q.part}
               onChecked={(ok) => (ok ? confirmDictationAt(i, q.correct_answer) : skipAt(i))}
             />
           )
@@ -60,6 +73,7 @@ export default function PassageQuestionGroup({
                 key={key}
                 optionKey={key}
                 text={val}
+                hideText={hideOptionsText}
                 status={getOptionStatusAt(i, key)}
                 disabled={answeredQ || locked}
                 onClick={() => toggleOptionAt(i, key)}

@@ -23,6 +23,10 @@ export function useToeicConfig(saved = {}) {
   // click chọn đáp án như thường, 'dictation' là nghe rồi gõ lại nguyên văn câu đã nghe để tự
   // chấm so với transcript — luyện nghe chép thay vì chỉ luyện chọn đáp án.
   const [listeningAnswerMode, setListeningAnswerMode] = useState(() => saved.listeningAnswerMode ?? 'choice') // 'choice' | 'dictation'
+  // Độc lập với listeningAnswerMode, áp dụng cho CẢ 2 cách trả lời: ẩn nội dung câu hỏi (q.question)
+  // và text đáp án của câu Listening (Part 1-4), giống đúng thi thật (chỉ nghe audio, không đọc
+  // được gợi ý từ chữ trên màn hình). Ở chế độ chọn đáp án vẫn giữ nút A/B/C/D để bấm, chỉ ẩn text.
+  const [hideListeningText, setHideListeningText] = useState(() => saved.hideListeningText ?? false)
 
   // selectedParts/selectedTags rỗng nghĩa là "không lọc gì" = dùng tất cả. Bỏ chọn 1 item lúc
   // đang ở trạng thái đó phải khởi tạo lại thành "tất cả trừ item này", không phải chỉ thêm
@@ -45,5 +49,6 @@ export function useToeicConfig(saved = {}) {
     splitByPart, setSplitByPart,
     practiceTimerEnabled, setPracticeTimerEnabled,
     listeningAnswerMode, setListeningAnswerMode,
+    hideListeningText, setHideListeningText,
   }
 }

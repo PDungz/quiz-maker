@@ -18,7 +18,9 @@ const KEY_STATUS_STYLES = {
 
 // 1 đáp án trong danh sách lựa chọn — dùng chung cho màn từng câu, scroll-view, review.
 // status: 'none' | 'selected' | 'correct' | 'wrong' | 'reveal-correct' (xem quiz-session/utils/revealRules.js)
-export default function OptionItem({ optionKey, text, status, disabled, onClick }) {
+// hideText: ẩn nội dung đáp án (vd luyện Listening giống thi thật, chỉ nghe không đọc được chữ)
+// nhưng vẫn giữ nút bấm A/B/C/D để chọn — khác "disabled" là khoá hẳn tương tác.
+export default function OptionItem({ optionKey, text, status, disabled, hideText, onClick }) {
   return (
     <div
       className={cn(
@@ -31,7 +33,7 @@ export default function OptionItem({ optionKey, text, status, disabled, onClick 
       <span className={cn('w-7 h-7 shrink-0 rounded-md flex items-center justify-center text-xs font-bold', KEY_STATUS_STYLES[status])}>
         {optionKey}
       </span>
-      <span className="text-sm leading-normal pt-0.5">{text}</span>
+      {!hideText && <span className="text-sm leading-normal pt-0.5">{text}</span>}
     </div>
   )
 }

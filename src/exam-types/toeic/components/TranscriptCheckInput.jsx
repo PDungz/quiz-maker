@@ -17,7 +17,16 @@ function splitTranscriptLines(transcript) {
     .filter(Boolean)
 }
 
-export default function TranscriptCheckInput({ transcript, onChecked }) {
+// Nhãn từng ô nhập theo đúng vai trò của dòng đó trong transcript, không gọi chung "Câu N" vì
+// Part 1 các dòng đều là ĐÁP ÁN (A-D), không phải câu hỏi riêng biệt — dễ gây hiểu nhầm.
+function lineLabel(part, idx, total) {
+  if (part === 1) return `Đáp án ${String.fromCharCode(65 + idx)}`
+  if (part === 2) return idx === 0 ? 'Câu hỏi' : `Đáp án ${String.fromCharCode(64 + idx)}`
+  if (total > 1) return `Lượt ${idx + 1}`
+  return null
+}
+
+export default function TranscriptCheckInput({ transcript, part, onChecked }) {
   const lines = splitTranscriptLines(transcript)
   const [inputs, setInputs] = useState(() => lines.map(() => ''))
   const [checked, setChecked] = useState(false)
@@ -38,21 +47,24 @@ export default function TranscriptCheckInput({ transcript, onChecked }) {
 
   return (
     <div className="flex flex-col gap-2">
-      {lines.map((line, idx) => (
+      {lines.map((line, idx) => {
+        const label = lineLabel(part, idx, lines.length)
+        return (
         <div key={idx} className="flex flex-col gap-1">
           <Input
             value={inputs[idx]}
             onChange={e => setInputs(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))}
             onKeyDown={handleKeyDown}
             disabled={checked}
-            placeholder={lines.length > 1 ? `Câu ${idx + 1}: gõ lại điều bạn nghe được...` : 'Gõ lại câu bạn nghe được...'}
+            placeholder={label ? `${label}: gõ lại điều bạn nghe được...` : 'Gõ lại câu bạn nghe được...'}
             className={checked ? (results[idx] ? 'border-success' : 'border-destructive') : ''}
           />
           {checked && !results[idx] && (
             <p className="text-xs text-destructive">Gốc: <strong>{line}</strong></p>
           )}
         </div>
-      ))}
+        )
+      })}
       {!checked ? (
         <Button size="sm" variant="outline" className="self-end" onClick={handleCheck} disabled={inputs.some(v => !v.trim())}>Kiểm tra</Button>
       ) : (

@@ -34,6 +34,7 @@ export default function ToeicSetupSidebar({
   timerMinutes, setTimerMinutes,
   practiceTimerEnabled, setPracticeTimerEnabled,
   listeningAnswerMode, setListeningAnswerMode,
+  hideListeningText, setHideListeningText,
   poolSize, onBuildQuiz, hasQuestions,
 }) {
   const parts = Object.keys(partCounts).map(Number).sort((a, b) => a - b)
@@ -82,6 +83,10 @@ export default function ToeicSetupSidebar({
                   <SelectItem value="dictation">Nghe & gõ lại — luyện nghe chép, tự chấm theo transcript</SelectItem>
                 </SelectContent>
               </Select>
+              <Label className="font-normal text-muted-foreground text-xs">
+                <Checkbox checked={hideListeningText} onCheckedChange={v => setHideListeningText(!!v)} />
+                Ẩn chữ câu hỏi &amp; đáp án — giống thi thật, chỉ nghe audio
+              </Label>
             </div>
           )}
 
