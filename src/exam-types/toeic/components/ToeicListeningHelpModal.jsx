@@ -642,8 +642,11 @@ export default function ToeicListeningHelpModal({ onClose }) {
           <div className="bg-muted border rounded-lg px-3.5 py-2.5 text-xs">
             🎤 Thêm field <code>transcript</code> (multiline, <code>transcript: |</code>) cho câu hỏi để
             dùng được chế độ <strong className="text-foreground">"Nghe &amp; gõ lại"</strong> ở tab Học —
-            MỖI DÒNG trong transcript là MỘT câu audio đọc riêng, app hiện 1 ô nhập cho mỗi dòng (Part 1: 4 ô
-            A-D, Part 2: 4 ô gồm câu hỏi + 3 đáp án). Câu thiếu transcript vẫn luôn chọn đáp án như bình thường.
+            mô phỏng nghe 2 lần: <strong className="text-foreground">Bước 1</strong> nghe lần đầu rồi chọn
+            đáp án A/B/C/D như bình thường, kiểm tra chỉ báo đúng/sai (không lộ text); <strong className="text-foreground">Bước 2</strong> nghe
+            lại rồi gõ lại nguyên văn, MỖI DÒNG trong transcript là MỘT câu audio đọc riêng nên có 1 ô nhập
+            riêng (Part 1: 4 ô A-D, Part 2: 4 ô gồm câu hỏi + 3 đáp án) — xong cả 2 bước mới hiện giải thích.
+            Câu thiếu transcript vẫn luôn chọn đáp án như bình thường.
           </div>
 
           <p>Block audio dùng chung (passage, media: audio), đặc trưng Part 3-4:</p>

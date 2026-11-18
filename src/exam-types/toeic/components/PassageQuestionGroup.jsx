@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import OptionItem from '@/components/OptionItem'
 import { Button } from '@/components/ui/button'
 import { ExplanationText } from '../../../features/results'
-import TranscriptCheckInput from './TranscriptCheckInput'
+import DictationFlow from './DictationFlow'
 
 // 1 đoạn văn/ảnh/audio (passage) + TOÀN BỘ câu hỏi thuộc nó, bọc chung trong 1 khung ngoài duy
 // nhất — đặc trưng TOEIC Part 6-7 (1 đoạn văn) và Part 1-4 (1 ảnh hoặc 1 audio dùng chung).
@@ -55,10 +55,13 @@ export default function PassageQuestionGroup({
           <audio controls src={perQuestionAudioUrl} className="w-full h-10" />
         )}
         {isDictation ? (
-          <TranscriptCheckInput
+          <DictationFlow
+            options={q.options}
+            correctAnswer={q.correct_answer[0]}
             transcript={q.transcript}
             part={q.part}
-            onChecked={(ok) => (ok ? confirmDictationAt(i, q.correct_answer) : skipAt(i))}
+            hideOptionsText={hideOptionsText}
+            onDone={() => confirmDictationAt(i, q.correct_answer)}
           />
         ) : (
           <div className="flex flex-col gap-2">
