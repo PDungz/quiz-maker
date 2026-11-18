@@ -5,19 +5,30 @@ import { Badge } from '@/components/ui/badge'
 import { isAnswerCorrect } from '../../vocab/utils/matchAnswer'
 
 // Chế độ "Nghe & gõ lại" cho Listening (Part 1-4) ở tab Học: thay vì click chọn đáp án, người
-// học nghe audio rồi gõ lại nguyên văn câu đã nghe, app chấm gần đúng (isAnswerCorrect, cùng hàm
-// dùng cho gõ tay ở Từ vựng) so với field transcript khai báo trong .md. Khác việc chọn đáp án
-// A/B/C/D — mục tiêu là luyện nghe chép, không phải luyện loại trừ đáp án.
+// học nghe audio rồi gõ lại nguyên văn từng câu đã nghe. Field transcript trong .md là multiline
+// (transcript: |), MỖI DÒNG ứng với MỘT câu audio đọc riêng — Part 1: 4 dòng (mô tả A-D), Part 2:
+// dòng đầu là câu hỏi + 3 dòng sau là 3 đáp án, Part 3-4: từng lượt thoại "Woman:"/"Man:" (nhãn
+// loại bỏ khi chấm). Mỗi dòng có 1 ô nhập riêng, chấm gần đúng bằng isAnswerCorrect (cùng hàm
+// dùng cho gõ tay ở Từ vựng). Transcript 1 dòng (Part 3-4 không tách lượt) vẫn hoạt động như cũ.
+function splitTranscriptLines(transcript) {
+  return transcript
+    .split('\n')
+    .map(line => line.replace(/^(Woman|Man):\s*/i, '').trim())
+    .filter(Boolean)
+}
+
 export default function TranscriptCheckInput({ transcript, onChecked }) {
-  const [input, setInput] = useState('')
+  const lines = splitTranscriptLines(transcript)
+  const [inputs, setInputs] = useState(() => lines.map(() => ''))
   const [checked, setChecked] = useState(false)
-  const [correct, setCorrect] = useState(false)
+
+  const results = checked ? lines.map((line, idx) => isAnswerCorrect(inputs[idx], line)) : null
+  const allCorrect = results?.every(Boolean) ?? false
 
   const handleCheck = () => {
     if (checked) return
-    const ok = isAnswerCorrect(input, transcript)
-    setCorrect(ok)
     setChecked(true)
+    const ok = lines.every((line, idx) => isAnswerCorrect(inputs[idx], line))
     onChecked?.(ok)
   }
 
@@ -27,22 +38,27 @@ export default function TranscriptCheckInput({ transcript, onChecked }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <Input
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={checked}
-        placeholder="Gõ lại câu bạn nghe được..."
-      />
-      {!checked ? (
-        <Button size="sm" variant="outline" className="self-end" onClick={handleCheck} disabled={!input.trim()}>Kiểm tra</Button>
-      ) : (
-        <div className={`rounded-lg border px-3.5 py-2.5 text-sm ${correct ? 'border-success text-success bg-success/10' : 'border-destructive text-destructive bg-destructive/10'}`}>
-          <Badge variant={correct ? 'default' : 'destructive'} className={correct ? 'bg-success text-success-foreground mb-1' : 'mb-1'}>
-            {correct ? '✓ Nghe đúng' : '✗ Chưa khớp'}
-          </Badge>
-          <p>Transcript gốc: <strong>{transcript}</strong></p>
+      {lines.map((line, idx) => (
+        <div key={idx} className="flex flex-col gap-1">
+          <Input
+            value={inputs[idx]}
+            onChange={e => setInputs(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))}
+            onKeyDown={handleKeyDown}
+            disabled={checked}
+            placeholder={lines.length > 1 ? `Câu ${idx + 1}: gõ lại điều bạn nghe được...` : 'Gõ lại câu bạn nghe được...'}
+            className={checked ? (results[idx] ? 'border-success' : 'border-destructive') : ''}
+          />
+          {checked && !results[idx] && (
+            <p className="text-xs text-destructive">Gốc: <strong>{line}</strong></p>
+          )}
         </div>
+      ))}
+      {!checked ? (
+        <Button size="sm" variant="outline" className="self-end" onClick={handleCheck} disabled={inputs.some(v => !v.trim())}>Kiểm tra</Button>
+      ) : (
+        <Badge variant={allCorrect ? 'default' : 'destructive'} className={`self-start ${allCorrect ? 'bg-success text-success-foreground' : ''}`}>
+          {allCorrect ? '✓ Nghe đúng hết' : `✗ Đúng ${results.filter(Boolean).length}/${lines.length}`}
+        </Badge>
       )}
     </div>
   )

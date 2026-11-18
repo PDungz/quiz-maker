@@ -12,7 +12,7 @@ const FIELDS = [
   ['options', 'Có', 'Các lựa chọn dạng key-value'],
   ['correct_answer', 'Có', <>Key đáp án đúng, vd <code>A</code></>],
   ['explanation', 'Không', <>Giải thích đáp án, dùng tag <code>&lt;hl type="..."&gt;</code> để đánh dấu dấu hiệu nhận biết</>],
-  ['transcript', 'Khuyến nghị', <>Nguyên văn lời đọc trong audio của câu này. Dùng cho chế độ "Nghe &amp; gõ lại" ở tab Học — không bắt buộc, nhưng thiếu thì câu đó sẽ tự rơi về chế độ chọn đáp án</>],
+  ['transcript', 'Khuyến nghị', <>Nguyên văn lời đọc trong audio, multiline — mỗi dòng 1 câu audio đọc riêng. Dùng cho chế độ "Nghe &amp; gõ lại" ở tab Học — không bắt buộc, nhưng thiếu thì câu đó sẽ tự rơi về chế độ chọn đáp án</>],
 ]
 
 const PASSAGE_FIELDS = [
@@ -100,11 +100,15 @@ Ghi thêm field \`transcript\` (nguyên văn lời đọc trong audio của câu
 \`transcript\` (không phân biệt hoa/thường, dấu câu, khoảng trắng dư). Chế độ này chỉ bật được cho
 câu có \`transcript\`; câu thiếu field này vẫn luôn hoạt động bình thường ở chế độ chọn đáp án.
 
-Chỉ cần ghi transcript cho phần audio liên quan trực tiếp đến câu hỏi đó:
-- Part 1-2: cả câu audio (vd nguyên câu mô tả tranh, hoặc câu hỏi + đáp án được đọc).
-- Part 3-4: 1 nhóm audio dùng chung cho 3 câu — có thể ghi transcript giống nhau cho cả 3 câu
-  (toàn bộ đoạn hội thoại/bài nói) nếu muốn luyện nghe chép cả đoạn, hoặc để trống ở 2 câu sau
-  nếu chỉ muốn luyện nghe chép câu đầu nhóm.
+\`transcript\` là multiline (\`transcript: |\`), MỖI DÒNG ứng với ĐÚNG MỘT câu mà audio đọc ra —
+app sẽ hiện 1 ô nhập riêng cho mỗi dòng, để người học gõ lại từng câu thay vì gộp cả đoạn vào 1 ô:
+- Part 1: audio đọc 4 câu mô tả tranh (không đọc A/B/C/D) → ghi ĐỦ 4 dòng, mỗi dòng 1 câu mô tả,
+  đúng thứ tự A, B, C, D (xem ví dụ Part 1 bên dưới).
+- Part 2: audio đọc câu hỏi rồi đến từng đáp án → ghi dòng đầu là câu hỏi, các dòng sau là từng
+  đáp án (3 dòng, theo thứ tự A, B, C) — tổng 4 dòng (xem ví dụ Part 2 bên dưới).
+- Part 3-4: giữ nhãn \`Woman:\`/\`Man:\` đầu mỗi dòng như ví dụ Part 3 — app tự bỏ nhãn này khi
+  chấm, mỗi lượt thoại là 1 ô nhập. Chỉ cần ghi transcript ở câu đầu nhóm (3 câu dùng chung 1
+  audio); 2 câu sau trong nhóm có thể để trống transcript nếu không cần luyện nghe chép riêng.
 
 ## Audio & ảnh — nạp qua folder, không ghi trong .md
 
@@ -201,7 +205,11 @@ options:
   C: A woman is watering plants.
   D: A woman is painting a wall.
 correct_answer: A
-transcript: A man is typing on a laptop.
+transcript: |
+  A man is typing on a laptop.
+  A man is reading a newspaper.
+  A woman is watering plants.
+  A woman is painting a wall.
 ---
 
 ## Ví dụ Part 2 (câu hỏi + đáp án bằng lời nói, chỉ cần audio q7.mp3)
@@ -217,7 +225,11 @@ options:
   C: Next Tuesday.
 correct_answer: A
 explanation: Câu hỏi "When" cần đáp án chỉ <hl type="time">thời điểm</hl>, nên A đúng.
-transcript: When does the meeting start?
+transcript: |
+  When does the meeting start?
+  At 9 A.M.
+  In the conference room.
+  Next Tuesday.
 ---
 
 ## Ví dụ Part 3 (1 audio hội thoại dùng chung ĐÚNG 3 câu, chỉ cần audio q32.mp3)
@@ -335,7 +347,7 @@ correct_answer: C
 5. Luôn đánh số number cho từng câu hỏi theo đúng chuẩn TOEIC: Part 1 = 1-6, Part 2 = 7-31, Part 3 = 32-70, Part 4 = 71-100 — number dùng để khớp đúng file audio/ảnh, không được bỏ trống.
 6. File audio/ảnh thật đặt tên q<number>.<đuôi file> trong 1 folder, nạp qua nút "🎧 Thêm folder audio (Listening)" — không ghi đường dẫn file vào .md.
 7. Trong explanation, bọc đúng cụm từ là dấu hiệu nhận biết bằng <hl type="...">...</hl> nếu có.
-8. Ghi thêm transcript (nguyên văn lời đọc trong audio) nếu muốn câu đó dùng được chế độ "Nghe & gõ lại" ở tab Học — câu thiếu transcript vẫn luôn hoạt động bình thường ở chế độ chọn đáp án.
+8. Ghi thêm transcript (multiline, mỗi dòng 1 câu audio đọc riêng) nếu muốn câu đó dùng được chế độ "Nghe & gõ lại" ở tab Học — câu thiếu transcript vẫn luôn hoạt động bình thường ở chế độ chọn đáp án.
 9. Không thêm text nào ngoài các block --- ... ---.
 
 ---
@@ -628,9 +640,10 @@ export default function ToeicListeningHelpModal({ onClose }) {
           </div>
 
           <div className="bg-muted border rounded-lg px-3.5 py-2.5 text-xs">
-            🎤 Thêm field <code>transcript</code> (nguyên văn lời đọc trong audio) cho câu hỏi để
+            🎤 Thêm field <code>transcript</code> (multiline, <code>transcript: |</code>) cho câu hỏi để
             dùng được chế độ <strong className="text-foreground">"Nghe &amp; gõ lại"</strong> ở tab Học —
-            nghe rồi gõ lại câu, app tự chấm gần đúng. Câu thiếu transcript vẫn luôn chọn đáp án như bình thường.
+            MỖI DÒNG trong transcript là MỘT câu audio đọc riêng, app hiện 1 ô nhập cho mỗi dòng (Part 1: 4 ô
+            A-D, Part 2: 4 ô gồm câu hỏi + 3 đáp án). Câu thiếu transcript vẫn luôn chọn đáp án như bình thường.
           </div>
 
           <p>Block audio dùng chung (passage, media: audio), đặc trưng Part 3-4:</p>
