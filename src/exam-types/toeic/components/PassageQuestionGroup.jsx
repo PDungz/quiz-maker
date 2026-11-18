@@ -55,17 +55,11 @@ export default function PassageQuestionGroup({
           <audio controls src={perQuestionAudioUrl} className="w-full h-10" />
         )}
         {isDictation ? (
-          answeredQ ? (
-            <div className="rounded-lg border px-3.5 py-2.5 text-sm bg-muted">
-              <p>Transcript: <strong>{q.transcript}</strong></p>
-            </div>
-          ) : (
-            <TranscriptCheckInput
-              transcript={q.transcript}
-              part={q.part}
-              onChecked={(ok) => (ok ? confirmDictationAt(i, q.correct_answer) : skipAt(i))}
-            />
-          )
+          <TranscriptCheckInput
+            transcript={q.transcript}
+            part={q.part}
+            onChecked={(ok) => (ok ? confirmDictationAt(i, q.correct_answer) : skipAt(i))}
+          />
         ) : (
           <div className="flex flex-col gap-2">
             {Object.entries(q.options).map(([key, val]) => (

@@ -10,6 +10,11 @@ import { isAnswerCorrect } from '../../vocab/utils/matchAnswer'
 // dòng đầu là câu hỏi + 3 dòng sau là 3 đáp án, Part 3-4: từng lượt thoại "Woman:"/"Man:" (nhãn
 // loại bỏ khi chấm). Mỗi dòng có 1 ô nhập riêng, chấm gần đúng bằng isAnswerCorrect (cùng hàm
 // dùng cho gõ tay ở Từ vựng). Transcript 1 dòng (Part 3-4 không tách lượt) vẫn hoạt động như cũ.
+//
+// Component này TỰ GIỮ trạng thái đã chấm (checked) và không bao giờ bị thay bằng 1 khối tóm tắt
+// khác ở ngoài — PassageQuestionGroup luôn render component này kể cả sau khi đã trả lời, để giữ
+// nguyên đúng những gì người học đã gõ + kết quả đối chiếu từng dòng, không rơi mất về 1 đoạn văn
+// transcript gộp chung không còn phân biệt được đã gõ đúng/sai chỗ nào.
 function splitTranscriptLines(transcript) {
   return transcript
     .split('\n')
@@ -32,13 +37,14 @@ export default function TranscriptCheckInput({ transcript, part, onChecked }) {
   const [checked, setChecked] = useState(false)
 
   const results = checked ? lines.map((line, idx) => isAnswerCorrect(inputs[idx], line)) : null
-  const allCorrect = results?.every(Boolean) ?? false
+  const correctCount = results?.filter(Boolean).length ?? 0
+  const pct = lines.length ? Math.round((correctCount / lines.length) * 100) : 0
+  const allCorrect = checked && correctCount === lines.length
 
   const handleCheck = () => {
     if (checked) return
     setChecked(true)
-    const ok = lines.every((line, idx) => isAnswerCorrect(inputs[idx], line))
-    onChecked?.(ok)
+    onChecked?.(lines.every((line, idx) => isAnswerCorrect(inputs[idx], line)))
   }
 
   const handleKeyDown = (e) => {
@@ -47,30 +53,43 @@ export default function TranscriptCheckInput({ transcript, part, onChecked }) {
 
   return (
     <div className="flex flex-col gap-2">
+      {checked && (
+        <div className={`flex items-center justify-between rounded-lg border px-3.5 py-2 text-sm ${allCorrect ? 'border-success bg-success/10' : 'border-destructive bg-destructive/10'}`}>
+          <span className={allCorrect ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
+            {allCorrect ? '✓ Nghe đúng hết' : `✗ Đúng ${correctCount}/${lines.length}`}
+          </span>
+          <span className="text-muted-foreground">{pct}%</span>
+        </div>
+      )}
       {lines.map((line, idx) => {
         const label = lineLabel(part, idx, lines.length)
+        const isCorrect = results?.[idx]
         return (
-        <div key={idx} className="flex flex-col gap-1">
-          <Input
-            value={inputs[idx]}
-            onChange={e => setInputs(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))}
-            onKeyDown={handleKeyDown}
-            disabled={checked}
-            placeholder={label ? `${label}: gõ lại điều bạn nghe được...` : 'Gõ lại câu bạn nghe được...'}
-            className={checked ? (results[idx] ? 'border-success' : 'border-destructive') : ''}
-          />
-          {checked && !results[idx] && (
-            <p className="text-xs text-destructive">Gốc: <strong>{line}</strong></p>
-          )}
-        </div>
+          <div key={idx} className="flex flex-col gap-1">
+            {label && <span className="text-xs text-muted-foreground font-medium">{label}</span>}
+            {!checked ? (
+              <Input
+                value={inputs[idx]}
+                onChange={e => setInputs(prev => prev.map((v, i) => (i === idx ? e.target.value : v)))}
+                onKeyDown={handleKeyDown}
+                placeholder="Gõ lại điều bạn nghe được..."
+              />
+            ) : (
+              <div className={`rounded-lg border px-3.5 py-2.5 text-sm flex items-start gap-2 ${isCorrect ? 'border-success bg-success/10' : 'border-destructive bg-destructive/10'}`}>
+                <Badge variant={isCorrect ? 'default' : 'destructive'} className={`shrink-0 ${isCorrect ? 'bg-success text-success-foreground' : ''}`}>
+                  {isCorrect ? '✓' : '✗'}
+                </Badge>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <p>Bạn gõ: <strong>{inputs[idx] || <span className="text-muted-foreground italic">(bỏ trống)</span>}</strong></p>
+                  {!isCorrect && <p className="text-muted-foreground">Đúng là: <strong className="text-foreground">{line}</strong></p>}
+                </div>
+              </div>
+            )}
+          </div>
         )
       })}
-      {!checked ? (
+      {!checked && (
         <Button size="sm" variant="outline" className="self-end" onClick={handleCheck} disabled={inputs.some(v => !v.trim())}>Kiểm tra</Button>
-      ) : (
-        <Badge variant={allCorrect ? 'default' : 'destructive'} className={`self-start ${allCorrect ? 'bg-success text-success-foreground' : ''}`}>
-          {allCorrect ? '✓ Nghe đúng hết' : `✗ Đúng ${results.filter(Boolean).length}/${lines.length}`}
-        </Badge>
       )}
     </div>
   )
