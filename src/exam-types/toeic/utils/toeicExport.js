@@ -6,7 +6,7 @@ import { formatDuration } from '../../../utils/quiz'
 // questions/answers/scoreMode...) nên TOEIC tái dùng thẳng, không cần viết lại.
 export function buildToeicProgressMarkdown(opts) {
   const {
-    questions, answers, revealed,
+    questions, answers, revealed, dictationInputs = {},
     sourceNames, practiceMode, topicFilterBy, examStyle, selectedParts, selectedTags, timerMinutes, practiceTimerEnabled,
     secondsLeft, timerStarted, timerPaused,
     startedAt, pausedMs,
@@ -35,6 +35,7 @@ export function buildToeicProgressMarkdown(opts) {
     questions,
     answers: questions.map((_, i) => [...(answers[i] ?? new Set())]),
     revealed,
+    dictationInputs,
     practiceMode, topicFilterBy, examStyle, selectedParts, selectedTags, practiceTimerEnabled: !!practiceTimerEnabled,
     timerMinutes,
     secondsLeft, timerStarted: !!timerStarted, timerPaused: !!timerPaused,
@@ -53,7 +54,7 @@ export function parseToeicProgressSnapshot(text) {
     if (snapshot.kind !== 'toeic-progress') return null
     const answers = {}
     snapshot.answers.forEach((keys, i) => { answers[i] = new Set(keys) })
-    return { ...snapshot, answers }
+    return { ...snapshot, answers, dictationInputs: snapshot.dictationInputs ?? {} }
   } catch {
     return null
   }

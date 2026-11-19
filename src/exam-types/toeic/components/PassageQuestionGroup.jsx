@@ -15,6 +15,7 @@ export default function PassageQuestionGroup({
   passage, questions, questionIndexOf, answers, revealed, locked, partHeading,
   getOptionStatusAt, toggleOptionAt, confirmAt, skipAt, getAudioUrl, getImageUrl,
   dictationMode = false, hideListeningText = false, dictationMatchThreshold = 80, confirmDictationAt,
+  dictationInputs = {}, saveDictationInputs,
 }) {
   const groupAudioUrl = getAudioUrl?.(questions[0])
 
@@ -62,7 +63,10 @@ export default function PassageQuestionGroup({
             part={q.part}
             hideOptionsText={hideOptionsText}
             matchThreshold={dictationMatchThreshold}
-            onDone={() => confirmDictationAt(i, q.correct_answer)}
+            answeredSelection={answeredQ ? [...ans][0] : null}
+            savedTranscriptInputs={dictationInputs[i]}
+            onTranscriptInputsSaved={(inputs) => saveDictationInputs?.(i, inputs)}
+            onDone={(selectedAnswer) => confirmDictationAt(i, selectedAnswer)}
           />
         ) : (
           <div className="flex flex-col gap-2">

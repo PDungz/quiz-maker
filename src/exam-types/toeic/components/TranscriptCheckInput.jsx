@@ -11,9 +11,10 @@ import { matchPercent } from '../utils/transcriptMatch'
 // loại bỏ khi chấm). Mỗi dòng có 1 ô nhập riêng, chấm theo % từ khớp (matchThreshold) thay vì đòi
 // khớp tuyệt đối — thiếu/sai vài từ trong câu dài vẫn có thể đạt nếu đủ ngưỡng.
 //
-// Component này TỰ GIỮ trạng thái đã chấm (checked) và không bao giờ bị thay bằng 1 khối tóm tắt
-// khác ở ngoài — PassageQuestionGroup luôn render component này kể cả sau khi đã trả lời, để giữ
-// nguyên đúng những gì người học đã gõ + kết quả đối chiếu từng dòng.
+// savedInputs: nội dung đã gõ của lần kiểm tra trước (nếu có) — ToeicPage lưu lại vào
+// dictationInputs để xuất file/lưu làm dở/nạp lại không bị mất. Có savedInputs nghĩa là câu này
+// đã được chấm từ trước, component khởi tạo sẵn ở trạng thái "đã kiểm tra" để hiện lại kết quả
+// giống hệt lúc đang làm, không phải gõ lại.
 function splitTranscriptLines(transcript) {
   return transcript
     .split('\n')
@@ -30,12 +31,12 @@ function lineLabel(part, idx) {
   return String(idx + 1)
 }
 
-export default function TranscriptCheckInput({ transcript, part, matchThreshold = 80, onChecked }) {
+export default function TranscriptCheckInput({ transcript, part, matchThreshold = 80, savedInputs, onChecked, onInputsSaved }) {
   const lines = splitTranscriptLines(transcript)
-  const [inputs, setInputs] = useState(() => lines.map(() => ''))
-  const [checked, setChecked] = useState(false)
+  const [inputs, setInputs] = useState(() => savedInputs ?? lines.map(() => ''))
+  const [checked, setChecked] = useState(() => !!savedInputs)
 
-  const percents = checked ? lines.map((line, idx) => matchPercent(inputs[idx], line)) : null
+  const percents = checked ? lines.map((line, idx) => matchPercent(inputs[idx] ?? '', line)) : null
   const results = percents?.map(p => p >= matchThreshold)
   const correctCount = results?.filter(Boolean).length ?? 0
   const avgPct = percents?.length ? Math.round(percents.reduce((s, p) => s + p, 0) / percents.length) : 0
@@ -44,6 +45,7 @@ export default function TranscriptCheckInput({ transcript, part, matchThreshold 
   const handleCheck = () => {
     if (checked) return
     setChecked(true)
+    onInputsSaved?.(inputs)
     const ok = lines.every((line, idx) => matchPercent(inputs[idx], line) >= matchThreshold)
     onChecked?.(ok)
   }

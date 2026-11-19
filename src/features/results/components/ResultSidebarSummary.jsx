@@ -15,8 +15,8 @@ export default function ResultSidebarSummary({
 }) {
   return (
     <>
-      <Separator className="mt-2" />
-      <Card>
+      <Separator className="mt-2 shrink-0" />
+      <Card className="shrink-0">
         <CardContent className="flex flex-col items-center gap-2 text-center">
           <div className={`text-3xl font-extrabold leading-tight py-0.5 ${passed ? 'text-success' : 'text-destructive'}`}>{pct}%</div>
           <Badge variant={passed ? 'default' : 'destructive'} className={passed ? 'bg-success text-success-foreground' : ''}>

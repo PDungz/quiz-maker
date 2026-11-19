@@ -26,7 +26,10 @@ export function buildResultSnapshot(questions, answers, scoreMode, pointMode, cu
   }
 }
 
-export function buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt) {
+// dictationInputs (optional, chỉ TOEIC dùng): { [questionIndex]: string[] } nội dung đã gõ của
+// chế độ "Nghe & gõ lại" Listening — Quiz không có khái niệm này nên luôn undefined/{}, không ảnh
+// hưởng hành vi cũ.
+export function buildExportMarkdown(questions, answers, scoreMode, pointMode, customPoints, pct, passed, passPct, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt, dictationInputs = {}) {
   const now = new Date()
   const lines = []
   lines.push(`# Kết quả bài làm — Quiz Maker`)
@@ -70,6 +73,9 @@ export function buildExportMarkdown(questions, answers, scoreMode, pointMode, cu
     lines.push(`**Kết quả: ${status}**`)
     if (!isSkipped) lines.push(`- Bạn chọn: ${[...ans].map(k => `${k}. ${q.options[k] ?? ''}`).join('; ')}`)
     lines.push(`- Đáp án đúng: ${[...ck].map(k => `${k}. ${q.options[k] ?? ''}`).join('; ')}`)
+    if (dictationInputs[i]?.length) {
+      lines.push(`- Đã gõ lại (nghe chép): ${dictationInputs[i].map(v => v || '(bỏ trống)').join(' / ')}`)
+    }
     lines.push('')
     lines.push('Giải thích')
     const explanationParts = []
@@ -93,6 +99,7 @@ export function buildExportMarkdown(questions, answers, scoreMode, pointMode, cu
     elapsedSeconds: elapsedSeconds ?? null, timerEnabled: !!timerEnabled, timerMinutes: timerMinutes ?? null, startedAt: startedAt ?? null,
     questions,
     answers: questions.map((_, i) => [...(answers[i] ?? new Set())]),
+    dictationInputs,
   }
   lines.push(`<!-- QUIZ_MAKER_DATA\n${JSON.stringify(snapshot)}\n-->`)
 
@@ -107,7 +114,7 @@ export function parseExportSnapshot(text) {
     if (snapshot.kind && snapshot.kind !== 'result') return null
     const answers = {}
     snapshot.answers.forEach((keys, i) => { answers[i] = new Set(keys) })
-    return { ...snapshot, answers }
+    return { ...snapshot, answers, dictationInputs: snapshot.dictationInputs ?? {} }
   } catch {
     return null
   }

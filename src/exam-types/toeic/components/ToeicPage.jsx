@@ -49,6 +49,12 @@ export default function ToeicPage() {
   const [selectedDotIndex, setSelectedDotIndex] = useState(null)
   const [importedResult, setImportedResult] = useState(null)
   const { retrySelection, toggleRetrySelect, selectManyRetry, setRetrySelection } = useRetrySelection()
+  // Nội dung đã gõ của chế độ "Nghe & gõ lại", theo từng câu: { [questionIndex]: string[] } (mỗi
+  // phần tử ứng với 1 dòng transcript). Tách riêng khỏi answers (chỉ chứa đáp án A/B/C/D đã chọn)
+  // vì đây là phần gõ tay tự do, không phải lựa chọn — nhưng vẫn cần lưu/khôi phục y hệt answers
+  // để không mất khi lưu session, xuất kết quả, hay lưu bài đang làm dở.
+  const [dictationInputs, setDictationInputs] = useState(() => saved.dictationInputs ?? {})
+  const saveDictationInputs = (i, inputs) => setDictationInputs(prev => ({ ...prev, [i]: inputs }))
 
   const config = useToeicConfig(saved)
   const {
@@ -113,7 +119,7 @@ export default function ToeicPage() {
 
   const buildQuiz = () => {
     const pool = buildPool()
-    setQuestions(pool); setAnswers({}); setRevealed({}); setSubmitted(false)
+    setQuestions(pool); setAnswers({}); setRevealed({}); setSubmitted(false); setDictationInputs({})
     armTimer()
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
     const firstPart = [...new Set(pool.map(q => q.part).filter(Boolean))].sort((a, b) => a - b)[0] ?? null
@@ -123,6 +129,7 @@ export default function ToeicPage() {
   const resetToeic = () => {
     resetSession()
     resetTimer()
+    setDictationInputs({})
     setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set()); setActivePart(null)
   }
 
@@ -175,6 +182,7 @@ export default function ToeicPage() {
       setQuestions(snap.questions)
       setAnswers(snap.answers)
       setRevealed(snap.revealed ?? {})
+      setDictationInputs(snap.dictationInputs ?? {})
       setSubmitted(false)
       setPracticeMode(snap.practiceMode ?? 'topic')
       setTopicFilterBy(snap.topicFilterBy ?? 'part')
@@ -199,21 +207,21 @@ export default function ToeicPage() {
   }
 
   const exportSnapshot = (snap) => {
-    const { content, now } = buildExportMarkdown(snap.questions, snap.answers, snap.scoreMode, snap.pointMode, snap.customPoints, snap.pct, snap.passed, snap.passPct, snap.sourceNames, snap.elapsedSeconds, snap.timerEnabled, snap.timerMinutes, snap.startedAt)
+    const { content, now } = buildExportMarkdown(snap.questions, snap.answers, snap.scoreMode, snap.pointMode, snap.customPoints, snap.pct, snap.passed, snap.passPct, snap.sourceNames, snap.elapsedSeconds, snap.timerEnabled, snap.timerMinutes, snap.startedAt, snap.dictationInputs)
     const baseName = snap.sourceNames?.length === 1 ? slugifyFilename(snap.sourceNames[0]) : snap.sourceNames?.length > 1 ? 'nhieu-file' : 'toeic'
     downloadTextFile(`ket-qua-toeic_${baseName}_${formatTimestampForFilename(now)}.md`, content)
   }
 
   const exportCurrentResult = () => {
     const sourceNames = files.map(f => f.name)
-    exportSnapshot({ questions, answers, scoreMode: 'count', pointMode: 'fixed', customPoints: {}, pct, passed, passPct: 70, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt })
+    exportSnapshot({ questions, answers, scoreMode: 'count', pointMode: 'fixed', customPoints: {}, pct, passed, passPct: 70, sourceNames, elapsedSeconds, timerEnabled, timerMinutes, startedAt, dictationInputs })
   }
 
   const saveProgress = () => {
     const sourceNames = files.map(f => f.name)
     const pausedMsAtSave = timer.pausedMsAtNow()
     const { content, now } = buildToeicProgressMarkdown({
-      questions, answers, revealed,
+      questions, answers, revealed, dictationInputs,
       sourceNames, practiceMode, topicFilterBy, examStyle, selectedParts, selectedTags, timerMinutes, practiceTimerEnabled,
       secondsLeft, timerStarted, timerPaused,
       startedAt, pausedMs: pausedMsAtSave,
@@ -230,7 +238,7 @@ export default function ToeicPage() {
         practiceMode, topicFilterBy, selectedTags, listeningAnswerMode, hideListeningText, dictationMatchThreshold,
         examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
         timerStarted, timerPaused, secondsLeft,
-        questions, answers, revealed, submitted,
+        questions, answers, revealed, submitted, dictationInputs,
         startedAt, elapsedSeconds, pausedMs: timer.pausedMs,
         pauseStartedAt: timer.pauseStartedAt != null ? Date.now() : null,
       }, SESSION_KEY)
@@ -241,7 +249,7 @@ export default function ToeicPage() {
     practiceMode, topicFilterBy, selectedTags, listeningAnswerMode, hideListeningText, dictationMatchThreshold,
     examStyle, selectedParts, timerMinutes, activePart, splitByPart, practiceTimerEnabled,
     timerStarted, timerPaused, secondsLeft,
-    questions, answers, revealed, submitted,
+    questions, answers, revealed, submitted, dictationInputs,
     startedAt, elapsedSeconds, timer.pausedMs, timer.pauseStartedAt,
   ])
 
@@ -249,13 +257,14 @@ export default function ToeicPage() {
   // Thi thử: hết giờ khoá bài luôn (tự nộp). Luyện tập: hết giờ chỉ cảnh báo, vẫn làm tiếp được.
   const locked = submitted || (timeUp && autoSubmitOnTimeUp)
 
-  // Chế độ "Nghe & gõ lại": kết quả đúng/sai đã được chấm xong ở TranscriptCheckInput (so với
-  // transcript), nên ở đây chỉ cần ghi nhận answers[i] = đúng đáp án rồi reveal trực tiếp — không
-  // gọi confirmAt vì nó dựa vào answers[i] đã có trong state (stale ngay sau setAnswers), còn ở
-  // đây mình đã biết chắc là đúng nên không cần đi qua guard ans.size của nó.
-  const confirmDictationAt = (i, correctAnswer) => {
+  // Chế độ "Nghe & gõ lại": đáp án được chấm đúng/sai dựa vào ĐÁP ÁN NGƯỜI DÙNG THỰC SỰ ĐÃ CHỌN ở
+  // bước chọn A/B/C/D trong DictationFlow (selectedAnswer) — KHÔNG phải luôn coi là đúng. Việc gõ
+  // lại transcript chỉ là luyện nghe chép thêm, không ảnh hưởng điểm số của câu. Ghi thẳng vào
+  // answers[i] rồi reveal luôn, không gọi confirmAt vì nó dựa vào answers[i] đã có trong state
+  // (stale ngay sau setAnswers) và có guard ans.size không cần thiết ở đây.
+  const confirmDictationAt = (i, selectedAnswer) => {
     if (locked || timeUp) return
-    setAnswers(prev => ({ ...prev, [i]: new Set(correctAnswer) }))
+    setAnswers(prev => ({ ...prev, [i]: selectedAnswer ? new Set([selectedAnswer]) : new Set() }))
     setRevealed(prev => ({ ...prev, [i]: true }))
   }
 
@@ -442,6 +451,8 @@ export default function ToeicPage() {
                     hideListeningText={hideListeningText}
                     dictationMatchThreshold={dictationMatchThreshold}
                     confirmDictationAt={confirmDictationAt}
+                    dictationInputs={dictationInputs}
+                    saveDictationInputs={saveDictationInputs}
                   />
                 )
               })}
@@ -459,7 +470,7 @@ export default function ToeicPage() {
         />
       )}
       <aside
-        className={`w-[min(86vw,360px)] max-w-[360px] md:w-sidebar-w md:max-w-none shrink-0 bg-card border-l flex flex-col fixed top-header-h right-0 h-[calc(100dvh-var(--spacing-header-h))] overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 transition-transform duration-200 shadow-[-8px_0_24px_rgba(0,0,0,0.35)] md:shadow-none z-[60] md:z-auto ${
+        className={`w-[min(86vw,360px)] max-w-[360px] md:w-sidebar-w md:max-w-none shrink-0 bg-card border-l flex flex-col *:shrink-0 fixed top-header-h right-0 h-[calc(100dvh-var(--spacing-header-h))] overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 transition-transform duration-200 shadow-[-8px_0_24px_rgba(0,0,0,0.35)] md:shadow-none z-[60] md:z-auto ${
           sidebarCollapsed ? 'translate-x-full pointer-events-none' : 'translate-x-0'
         }`}
       >
@@ -670,7 +681,7 @@ export default function ToeicPage() {
             onRetrySelected={() => {
               const subset = questions.filter((_, i) => retrySelection.has(i))
               if (!subset.length) return
-              setQuestions(subset); setAnswers({}); setRevealed({}); setSubmitted(false)
+              setQuestions(subset); setAnswers({}); setRevealed({}); setSubmitted(false); setDictationInputs({})
               armTimer()
               setReviewFilter('all'); setHighlightIndex(null); setSelectedDotIndex(null); setRetrySelection(new Set())
               const firstPart = [...new Set(subset.map(q => q.part).filter(Boolean))].sort((a, b) => a - b)[0] ?? null
