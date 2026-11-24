@@ -4,6 +4,7 @@ import OptionItem from '@/components/OptionItem'
 import { Button } from '@/components/ui/button'
 import { ExplanationText } from '../../../features/results'
 import DictationFlow from './DictationFlow'
+import AudioPlayer from './AudioPlayer'
 
 // 1 đoạn văn/ảnh/audio (passage) + TOÀN BỘ câu hỏi thuộc nó, bọc chung trong 1 khung ngoài duy
 // nhất — đặc trưng TOEIC Part 6-7 (1 đoạn văn) và Part 1-4 (1 ảnh hoặc 1 audio dùng chung).
@@ -53,7 +54,7 @@ export default function PassageQuestionGroup({
           <img src={imageUrl} alt={`Câu ${q.number ?? i + 1}`} className="rounded-lg border max-h-80 object-contain" />
         )}
         {perQuestionAudioUrl && (
-          <audio controls src={perQuestionAudioUrl} className="w-full h-10" />
+          <AudioPlayer src={perQuestionAudioUrl} />
         )}
         {isDictation ? (
           <DictationFlow
@@ -110,7 +111,7 @@ export default function PassageQuestionGroup({
     return (
       <div className="mb-8">
         {heading}
-        {groupAudioUrl && <audio controls src={groupAudioUrl} className="w-full h-10 mb-4" />}
+        {groupAudioUrl && <AudioPlayer src={groupAudioUrl} className="w-full h-10 mb-4" />}
         <div className="flex flex-col gap-4">{inner}</div>
       </div>
     )
@@ -131,7 +132,7 @@ export default function PassageQuestionGroup({
               <CardContent className="flex flex-col gap-3">
                 {passage.title && <h3 className="font-semibold">{passage.title}</h3>}
                 {isAudioPassage ? (
-                  groupAudioUrl && <audio controls src={groupAudioUrl} className="w-full h-10" />
+                  groupAudioUrl && <AudioPlayer src={groupAudioUrl} />
                 ) : (
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{passage.content}</p>
                 )}

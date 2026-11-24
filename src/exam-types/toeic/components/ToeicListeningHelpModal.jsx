@@ -649,6 +649,15 @@ export default function ToeicListeningHelpModal({ onClose }) {
             Câu thiếu transcript vẫn luôn chọn đáp án như bình thường.
           </div>
 
+          <div className="bg-muted border rounded-lg px-3.5 py-2.5 text-xs">
+            🐢 Mỗi audio trong app có nút chọn tốc độ phát (0.5x/0.75x/0.85x/1x) cạnh thanh nghe —
+            dùng khi nghe chưa rõ 1 câu nào đó, không cần tạo lại audio chậm hơn riêng.
+            Nếu audio là do AI tự tạo (TTS, xem mục "Nhờ AI tự tạo audio" ở trên) và khi nghe kỹ
+            (kể cả ở tốc độ chậm) thấy transcript ghi KHÔNG khớp với thực tế đọc ra — có thể do TTS
+            đọc sai/nuốt một từ nào đó — hãy sửa lại transcript cho đúng với audio thật đang có
+            (transcript phải mô tả đúng cái tai nghe được), không sửa ngược lại audio.
+          </div>
+
           <p>Block audio dùng chung (passage, media: audio), đặc trưng Part 3-4:</p>
           <Table>
             <TableHeader>

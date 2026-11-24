@@ -48,8 +48,10 @@ const DISPLAY_MODE_LABELS = {
 
 // Cấu hình riêng cho TOEIC: chọn Part/chuyên đề có sẵn trong file đã nạp (practiceMode do
 // ToeicPage quyết định qua tab "Làm đề / Ôn luyện" ngay đầu sidebar, không nằm ở đây) + chọn
-// Luyện tập/Thi thử + hiển thị. Phần còn lại (timer, chấm điểm, retry...) tái dùng nguyên
-// features/quiz-session + results.
+// Luyện tập/Thi thử + hiển thị. Đồng hồ tham khảo (practiceTimerEnabled/timerMinutes) dùng
+// chung 1 cặp state cho cả 2 tab — ở tab Học hiện ngay trong "Luyện riêng", ở tab Làm đề hiện
+// trong "Hình thức" cùng với lựa chọn Luyện tập/Thi thử. Phần còn lại (chấm điểm, retry...) tái
+// dùng nguyên features/quiz-session + results.
 export default function ToeicSetupSidebar({
   practiceMode,
   topicFilterBy, setTopicFilterBy,
@@ -127,6 +129,23 @@ export default function ToeicSetupSidebar({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isTopicMode && (
+            <div className="flex flex-col gap-2 pb-1">
+              <FieldLabel>Giới hạn thời gian</FieldLabel>
+              <Label className="font-normal text-muted-foreground">
+                <Checkbox checked={practiceTimerEnabled} onCheckedChange={v => setPracticeTimerEnabled(!!v)} />
+                Bật đếm giờ (chỉ để tham khảo, hết giờ không tự nộp bài)
+              </Label>
+              {practiceTimerEnabled && (
+                <div className="flex items-center gap-2.5">
+                  <Input type="number" min={1} max={600} value={timerMinutes}
+                    onChange={e => setTimerMinutes(Math.max(1, +e.target.value))} />
+                  <span className="text-xs text-muted-foreground shrink-0">phút</span>
                 </div>
               )}
             </div>
