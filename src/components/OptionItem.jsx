@@ -20,13 +20,16 @@ const KEY_STATUS_STYLES = {
 // status: 'none' | 'selected' | 'correct' | 'wrong' | 'reveal-correct' (xem quiz-session/utils/revealRules.js)
 // hideText: ẩn nội dung đáp án (vd luyện Listening giống thi thật, chỉ nghe không đọc được chữ)
 // nhưng vẫn giữ nút bấm A/B/C/D để chọn — khác "disabled" là khoá hẳn tương tác.
-export default function OptionItem({ optionKey, text, status, disabled, hideText, onClick }) {
+// className: cho phép ép thêm chiều cao (vd h-full khi đặt trong 1 CSS Grid cần khớp hàng với ô
+// khác cao hơn) mà không phải định nghĩa lại style mặc định.
+export default function OptionItem({ optionKey, text, status, disabled, hideText, onClick, className }) {
   return (
     <div
       className={cn(
         'flex items-start gap-3 bg-card border-[1.5px] rounded-lg px-4 py-3 select-none transition-colors',
         STATUS_STYLES[status],
-        disabled ? 'cursor-default' : 'cursor-pointer hover:border-primary/50'
+        disabled ? 'cursor-default' : 'cursor-pointer hover:border-primary/50',
+        className
       )}
       onClick={disabled ? undefined : onClick}
     >

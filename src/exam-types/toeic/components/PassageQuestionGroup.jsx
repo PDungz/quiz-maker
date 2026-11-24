@@ -14,11 +14,12 @@ import AudioPlayer from './AudioPlayer'
 // q.number khớp với file đã nạp qua features/audio-library. imageUrl: ảnh minh hoạ Part 1.
 export default function PassageQuestionGroup({
   passage, questions, questionIndexOf, answers, revealed, locked, partHeading,
-  getOptionStatusAt, toggleOptionAt, confirmAt, skipAt, getAudioUrl, getImageUrl,
+  getOptionStatusAt, toggleOptionAt, confirmAt, skipAt, getAudioUrl, getAudioLowUrl, getImageUrl,
   dictationMode = false, hideListeningText = false, dictationMatchThreshold = 80, confirmDictationAt,
   dictationInputs = {}, saveDictationInputs,
 }) {
   const groupAudioUrl = getAudioUrl?.(questions[0])
+  const groupAudioLowUrl = getAudioLowUrl?.(questions[0])
 
   const inner = questions.map(q => {
     const i = questionIndexOf(q)
@@ -26,6 +27,7 @@ export default function PassageQuestionGroup({
     const answeredQ = !!revealed[i]
     const isMulti = q.type === 'multiple_choice'
     const perQuestionAudioUrl = questions.length === 1 ? null : getAudioUrl?.(q)
+    const perQuestionAudioLowUrl = questions.length === 1 ? null : getAudioLowUrl?.(q)
     const imageUrl = getImageUrl?.(q)
     // Chế độ nghe & gõ lại chỉ áp dụng cho câu Listening (part 1-4) có sẵn transcript — câu
     // Reading hoặc câu thiếu transcript vẫn rơi về chọn đáp án như thường.
@@ -54,7 +56,7 @@ export default function PassageQuestionGroup({
           <img src={imageUrl} alt={`Câu ${q.number ?? i + 1}`} className="rounded-lg border max-h-80 object-contain" />
         )}
         {perQuestionAudioUrl && (
-          <AudioPlayer src={perQuestionAudioUrl} />
+          <AudioPlayer src={perQuestionAudioUrl} srcLow={perQuestionAudioLowUrl} />
         )}
         {isDictation ? (
           <DictationFlow
@@ -111,7 +113,7 @@ export default function PassageQuestionGroup({
     return (
       <div className="mb-8">
         {heading}
-        {groupAudioUrl && <AudioPlayer src={groupAudioUrl} className="w-full h-10 mb-4" />}
+        {groupAudioUrl && <AudioPlayer src={groupAudioUrl} srcLow={groupAudioLowUrl} className="mb-4" />}
         <div className="flex flex-col gap-4">{inner}</div>
       </div>
     )
@@ -132,7 +134,7 @@ export default function PassageQuestionGroup({
               <CardContent className="flex flex-col gap-3">
                 {passage.title && <h3 className="font-semibold">{passage.title}</h3>}
                 {isAudioPassage ? (
-                  groupAudioUrl && <AudioPlayer src={groupAudioUrl} />
+                  groupAudioUrl && <AudioPlayer src={groupAudioUrl} srcLow={groupAudioLowUrl} />
                 ) : (
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{passage.content}</p>
                 )}

@@ -1,69 +1,37 @@
-import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
-import { ExplanationText } from '../../../features/results'
+// Dữ liệu thuần (text/bảng) cho ToeicListeningHelpModal.jsx — tách khỏi file UI để sửa nội dung
+// hướng dẫn không phải đọc/động vào JSX. Không có JSX ở đây để file có thể là .js thuần.
 
-const FIELDS = [
-  ['part', 'Không', <>Part của câu hỏi: <code>1</code>, <code>2</code>, <code>3</code> hoặc <code>4</code></>],
-  ['number', 'Bắt buộc', <>Số thứ tự câu hỏi thật trong đề, vd <code>1</code>-<code>100</code>. Dùng để hiển thị đúng số câu VÀ để khớp đúng file audio/ảnh thật</>],
-  ['passage_id', 'Không', <>Gắn câu hỏi vào 1 nhóm audio dùng chung (bắt buộc với Part 3-4), vd <code>p3-1</code></>],
+export const FIELDS = [
+  ['part', 'Không', 'Part của câu hỏi: 1, 2, 3 hoặc 4'],
+  ['number', 'Bắt buộc', 'Số thứ tự câu hỏi thật trong đề, vd 1-100. Dùng để hiển thị đúng số câu VÀ để khớp đúng file audio/ảnh thật'],
+  ['passage_id', 'Không', 'Gắn câu hỏi vào 1 nhóm audio dùng chung (bắt buộc với Part 3-4), vd p3-1'],
   ['question', 'Có', 'Nội dung câu hỏi'],
   ['options', 'Có', 'Các lựa chọn dạng key-value'],
-  ['correct_answer', 'Có', <>Key đáp án đúng, vd <code>A</code></>],
-  ['explanation', 'Không', <>Giải thích đáp án, dùng tag <code>&lt;hl type="..."&gt;</code> để đánh dấu dấu hiệu nhận biết</>],
-  ['transcript', 'Khuyến nghị', <>Nguyên văn lời đọc trong audio, multiline — mỗi dòng 1 câu audio đọc riêng. Dùng cho chế độ "Nghe &amp; gõ lại" ở tab Học — không bắt buộc, nhưng thiếu thì câu đó sẽ tự rơi về chế độ chọn đáp án</>],
+  ['correct_answer', 'Có', 'Key đáp án đúng, vd A'],
+  ['explanation', 'Không', 'Giải thích đáp án, dùng tag <hl type="..."> để đánh dấu dấu hiệu nhận biết'],
+  ['transcript', 'Khuyến nghị', 'Nguyên văn lời đọc trong audio, multiline — mỗi dòng 1 câu audio đọc riêng. Dùng cho chế độ "Nghe & gõ lại" ở tab Học — không bắt buộc, nhưng thiếu thì câu đó sẽ tự rơi về chế độ chọn đáp án'],
 ]
 
-const PASSAGE_FIELDS = [
-  ['kind', 'Có', <>Luôn là <code>passage</code> để đánh dấu đây là 1 nhóm dùng chung, không phải câu hỏi</>],
-  ['id', 'Có', <>Định danh nhóm, dùng để câu hỏi tham chiếu qua <code>passage_id</code>, vd <code>p3-1</code></>],
-  ['media', 'Có', <>Luôn đặt <code>audio</code> — đánh dấu đây là nhóm audio dùng chung (Part 3-4), không phải đoạn văn text</>],
+export const PASSAGE_FIELDS = [
+  ['kind', 'Có', 'Luôn là passage để đánh dấu đây là 1 nhóm dùng chung, không phải câu hỏi'],
+  ['id', 'Có', 'Định danh nhóm, dùng để câu hỏi tham chiếu qua passage_id, vd p3-1'],
+  ['media', 'Có', 'Luôn đặt audio — đánh dấu đây là nhóm audio dùng chung (Part 3-4), không phải đoạn văn text'],
   ['title', 'Không', 'Tiêu đề audio, vd tên hội thoại/bài nói'],
 ]
 
-const AUDIO_FILE_NAMING = [
+export const AUDIO_FILE_NAMING = [
   ['Part 1', 'q<number>.mp3', 'Mỗi câu có audio riêng, đặt theo đúng number của câu đó, vd q1.mp3'],
   ['Part 2', 'q<number>.mp3', 'Mỗi câu có audio riêng, đặt theo đúng number của câu đó, vd q7.mp3'],
   ['Part 3-4', 'q<number nhỏ nhất trong nhóm>.mp3', 'Cả nhóm 3 câu dùng chung 1 audio — chỉ cần đúng 1 file đặt theo number của câu ĐẦU nhóm, vd q71.mp3 dùng cho câu 71-73'],
 ]
 
-const IMAGE_FILE_NAMING = [
+export const IMAGE_FILE_NAMING = [
   ['Part 1', 'q<number>.jpg/.jpeg/.png/.webp', 'Ảnh minh hoạ riêng cho từng câu, đặt theo đúng number, vd q1.jpg'],
 ]
 
-function CopyBlock({ text }) {
-  const [copied, setCopied] = useState(false)
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-  return (
-    <div className="relative w-full">
-      <Button
-        variant={copied ? 'default' : 'outline'}
-        size="sm"
-        className="absolute top-2 right-2"
-        onClick={copy}
-      >
-        {copied ? '✓ Đã copy' : '📋 Copy'}
-      </Button>
-      <pre className="m-0 w-full max-h-[360px] overflow-y-auto whitespace-pre-wrap break-words bg-muted border rounded-lg p-3.5 font-mono text-xs"><code>{text}</code></pre>
-    </div>
-  )
-}
+export const PART1_IMAGE_PROMPT = `Tạo 1 ảnh minh hoạ cho câu hỏi TOEIC Part 1 (mô tả tranh), ảnh ĐEN TRẮNG (grayscale, không màu) – giống đúng ảnh trong đề thi TOEIC thật, phong cách ảnh chụp thực tế, không chữ/không watermark trong ảnh. Nội dung: <mô tả đúng đáp án đúng, vd "a man typing on a laptop at an office desk">. Ảnh phải thể hiện đúng hành động/vị trí này làm trọng tâm, không mập mờ, để người xem có thể mô tả lại bằng 1 câu tiếng Anh duy nhất.`
 
-const FULL_GUIDE = `# Quy tắc định dạng file đề TOEIC Listening (.md) — Quiz Maker
+export const FULL_GUIDE = `# Quy tắc định dạng file đề TOEIC Listening (.md) — Quiz Maker
 
 Tài liệu này mô tả định dạng file Markdown cho đề TOEIC Listening (Part 1-4).
 Dùng để: (1) người đọc tự viết file tay, (2) làm prompt đưa cho AI generate bộ đề đúng chuẩn.
@@ -132,9 +100,10 @@ của câu hỏi liên quan.
 
 ## Cấu trúc thư mục khuyến nghị
 
-App đọc TÊN FILE (không quan tâm file nằm thư mục con nào), nên có thể gom audio và ảnh vào 2
-thư mục con riêng cho gọn, hoặc để chung 1 thư mục — cả hai cách đều nạp được khi bấm
-"🎧 Thêm folder audio (Listening)" và chọn thư mục gốc (toeic-listening ở ví dụ dưới).
+App đọc TÊN FILE theo \`q<number>.<đuôi file>\`, và riêng thư mục \`audio-low\` có ý nghĩa đặc
+biệt (xem mục dưới) — ngoài \`audio-low\` ra thì có thể gom audio/ảnh vào thư mục con tuỳ ý hoặc
+để chung 1 thư mục, cả hai cách đều nạp được khi bấm "🎧 Thêm folder audio (Listening)" và chọn
+thư mục gốc (toeic-listening ở ví dụ dưới).
 
 \`\`\`
 toeic-listening/
@@ -143,6 +112,9 @@ toeic-listening/
 │   ├── q2.mp3
 │   ├── q7.mp3
 │   └── q32.mp3        (dùng chung cho cả nhóm Part 3 câu 32-34)
+├── audio-low/          (không bắt buộc — bản đọc CHẬM, xem mục dưới)
+│   ├── q1.mp3
+│   └── q7.mp3
 └── image/
     ├── q1.jpg
     ├── q2.jpg
@@ -152,6 +124,16 @@ toeic-listening/
 Lưu ý: chỉ Part 1 cần ảnh. Phải chọn đúng thư mục GỐC (toeic-listening) khi bấm nạp, không chọn
 riêng thư mục audio/ hoặc image/ — nếu không sẽ thiếu 1 trong 2 loại file.
 
+## Audio đọc chậm (audio-low) — tuỳ chọn, không bắt buộc
+
+Mỗi câu Listening có thể có THÊM 1 bản audio đọc CHẬM, đặt trong thư mục con tên đúng
+\`audio-low\`, CÙNG TÊN FILE với bản gốc trong \`audio/\` (vd \`audio/q1.mp3\` đi kèm
+\`audio-low/q1.mp3\`). Đây là 1 FILE AUDIO THẬT đọc chậm hơn — không phải chỉnh tốc độ phát của
+bản gốc — nên cần tự tạo/tự đọc riêng (giọng đọc chậm hơn, nghỉ giữa các từ rõ hơn). Khi có đủ cả
+2 bản, app hiện thêm checkbox "So sánh" cạnh audio — tick vào để hiện CẢ 2 player
+cùng lúc, nghe đối chiếu trực tiếp thay vì phải chuyển qua lại. Câu nào chỉ có audio gốc thì không
+hiện checkbox này, vẫn nghe bình thường.
+
 ## Tạo ảnh cho Part 1 bằng AI (nếu chưa có ảnh thật)
 
 Mỗi câu Part 1 cần 1 ảnh mô tả 1 tình huống/hành động đơn giản (người, vật, khung cảnh văn phòng/
@@ -159,11 +141,7 @@ Mỗi câu Part 1 cần 1 ảnh mô tả 1 tình huống/hành động đơn gi�
 công cụ tạo ảnh AI:
 
 \`\`\`
-Tạo 1 ảnh minh hoạ cho câu hỏi TOEIC Part 1 (mô tả tranh), ảnh ĐEN TRẮNG (grayscale, không màu) –
-giống đúng ảnh trong đề thi TOEIC thật, phong cách ảnh chụp thực tế, không chữ/không watermark
-trong ảnh. Nội dung: <mô tả đúng đáp án đúng, vd "a man typing on a laptop at an office desk">.
-Ảnh phải thể hiện đúng hành động/vị trí này làm trọng tâm, không mập mờ, để người xem có thể mô
-tả lại bằng 1 câu tiếng Anh duy nhất.
+${PART1_IMAGE_PROMPT}
 \`\`\`
 
 Sau khi có ảnh, đặt tên đúng theo \`number\` của câu (vd câu number: 1 → q1.jpg) rồi bỏ vào thư
@@ -362,7 +340,7 @@ Ghi chú thêm: <vd: độ khó, tránh trùng chủ đề đã có>`
 // đã viết — ghi lại đúng cách đã làm thành công trong môi trường AI chỉ có pip/npm, không có
 // công cụ TTS/tạo ảnh có sẵn, để lần sau không phải dò lại từ đầu. Giữ nguyên nội dung gốc, không
 // diễn giải lại, vì đây là hướng dẫn kỹ thuật chính xác (tên package, version, toạ độ vẽ...).
-const ASSET_GENERATION_GUIDE = `# Quy trình tạo audio và ảnh cho đề Listening (dành cho AI đọc để làm nhanh, không phải dò lại)
+export const ASSET_GENERATION_GUIDE = `# Quy trình tạo audio và ảnh cho đề Listening (dành cho AI đọc để làm nhanh, không phải dò lại)
 
 Phần này ghi lại cách đã làm thành công trong môi trường làm việc của AI (Linux, chỉ truy cập được pip/npm và GitHub). Làm đúng theo thứ tự dưới đây, không cần thử lại các hướng đã thất bại.
 
@@ -505,208 +483,3 @@ Giao file \`toeic-listening.zip\` bằng công cụ gửi file. Dặn người d
 3. Cấu trúc zip đúng \`toeic-listening/audio/\` và \`toeic-listening/image/\`.
 4. Nói rõ audio là giọng máy và AI chưa nghe thử; ảnh là tranh minh họa vẽ bằng code, không phải ảnh chụp.
 5. Nếu người dùng muốn ảnh chụp thực tế: dùng prompt mẫu trong mục "Tạo ảnh cho Part 1 bằng AI" của file hướng dẫn để họ tự tạo bằng công cụ khác.`
-
-export default function ToeicListeningHelpModal({ onClose }) {
-  const [copied, setCopied] = useState(false)
-  const copyAll = async () => {
-    try {
-      await navigator.clipboard.writeText(FULL_GUIDE)
-    } catch {
-      const ta = document.createElement('textarea')
-      ta.value = FULL_GUIDE
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-
-  return (
-    <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader className="flex-row items-center justify-between pr-8 min-w-0">
-          <DialogTitle>🎧 Định dạng file đề TOEIC Listening</DialogTitle>
-          <Button variant={copied ? 'default' : 'outline'} size="sm" onClick={copyAll}>
-            {copied ? '✓ Đã copy toàn bộ' : '📋 Copy toàn bộ hướng dẫn'}
-          </Button>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-4 text-sm text-muted-foreground min-w-0">
-          <p className="bg-muted border-l-[3px] border-l-primary rounded-lg px-3.5 py-2.5">
-            Đề TOEIC Listening (Part 1-4) gồm 2 loại block: <strong>audio dùng chung</strong>
-            (Part 3-4) và <strong>câu hỏi</strong>. File .md không chứa file audio/ảnh thật — nạp
-            riêng qua nút "🎧 Thêm folder audio" ở sidebar.
-          </p>
-
-          <div className="border rounded-lg p-3.5 flex flex-col gap-1.5">
-            <p className="font-semibold text-foreground">Số câu hỏi chuẩn theo từng Part</p>
-            <p><strong>Part 1</strong> (1-6): mỗi câu độc lập, có 1 ảnh + 1 audio riêng.</p>
-            <p><strong>Part 2</strong> (7-31): mỗi câu độc lập, có 1 audio riêng.</p>
-            <p><strong>Part 3</strong> (32-70): 1 audio hội thoại dùng chung <strong>đúng 3 câu hỏi</strong>.</p>
-            <p><strong>Part 4</strong> (71-100): 1 audio bài nói dùng chung <strong>đúng 3 câu hỏi</strong>.</p>
-            <p>Toàn bộ câu hỏi cùng 1 nhóm audio phải dùng chung 1 <code>passage_id</code> — app nhóm chúng hiển thị thành 1 khối duy nhất, không tách lẻ.</p>
-          </div>
-
-          <div className="border rounded-lg p-3.5 flex flex-col gap-2">
-            <p className="font-semibold text-foreground">🎧 Nạp audio & ảnh</p>
-            <p>
-              Bấm <strong>"🎧 Thêm folder audio (Listening)"</strong> ở sidebar, chọn 1 folder chứa
-              toàn bộ file audio/ảnh — app tự đọc tên file và khớp với field <code>number</code> của
-              câu hỏi. Không cần ghi đường dẫn file vào .md.
-            </p>
-            <p>Quy ước đặt tên file bắt buộc: <code>q&lt;number&gt;.&lt;đuôi file&gt;</code></p>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Part</TableHead>
-                  <TableHead>Tên file audio</TableHead>
-                  <TableHead>Ghi chú</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {AUDIO_FILE_NAMING.map(([part, name, note]) => (
-                  <TableRow key={part}>
-                    <TableCell className="font-mono text-foreground">{part}</TableCell>
-                    <TableCell className="font-mono">{name}</TableCell>
-                    <TableCell>{note}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Part</TableHead>
-                  <TableHead>Tên file ảnh</TableHead>
-                  <TableHead>Ghi chú</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {IMAGE_FILE_NAMING.map(([part, name, note]) => (
-                  <TableRow key={part}>
-                    <TableCell className="font-mono text-foreground">{part}</TableCell>
-                    <TableCell className="font-mono">{name}</TableCell>
-                    <TableCell>{note}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <p className="text-xs">Đuôi audio hỗ trợ: mp3, m4a, wav, ogg. File không khớp tên sẽ bị bỏ qua, không gây lỗi.</p>
-          </div>
-
-          <div className="border rounded-lg p-3.5 flex flex-col gap-2">
-            <p className="font-semibold text-foreground">📁 Cấu trúc thư mục khuyến nghị</p>
-            <p>
-              App chỉ đọc theo <strong className="text-foreground">tên file</strong>, không quan tâm file nằm
-              thư mục con nào — có thể tách audio/ảnh ra 2 thư mục con cho gọn. Khi bấm nạp, chọn đúng
-              thư mục GỐC (vd <code>toeic-listening</code>), không chọn riêng <code>audio/</code> hoặc <code>image/</code>.
-            </p>
-            <pre className="m-0 bg-muted border rounded-lg p-3 font-mono text-xs overflow-x-auto">{`toeic-listening/
-├── audio/
-│   ├── q1.mp3
-│   ├── q7.mp3
-│   └── q32.mp3   (dùng chung Part 3 câu 32-34)
-└── image/
-    ├── q1.jpg
-    ├── q2.jpg
-    └── q3.jpg`}</pre>
-            <p className="text-xs">Chỉ Part 1 cần ảnh. Sau khi nạp, panel bên trái sẽ hiện số audio/ảnh đã khớp và liệt kê file nào bị bỏ qua (không khớp tên) để dễ soát lại.</p>
-          </div>
-
-          <div className="border rounded-lg p-3.5 flex flex-col gap-2">
-            <p className="font-semibold text-foreground">🖼 Tạo ảnh Part 1 bằng AI (nếu chưa có ảnh thật)</p>
-            <p>
-              Mỗi câu Part 1 cần đúng 1 ảnh mô tả 1 hành động/tình huống khớp với đáp án đúng. Ảnh đề
-              TOEIC thật luôn là <strong className="text-foreground">ảnh đen trắng</strong> — nhớ ghi rõ
-              trong prompt, đừng để AI tạo ảnh màu rồi dễ bị nhầm với ảnh minh hoạ thường. Prompt mẫu cho từng câu:
-            </p>
-            <CopyBlock text={`Tạo 1 ảnh minh hoạ cho câu hỏi TOEIC Part 1 (mô tả tranh), ảnh ĐEN TRẮNG (grayscale, không màu) – giống đúng ảnh trong đề thi TOEIC thật, phong cách ảnh chụp thực tế, không chữ/không watermark trong ảnh. Nội dung: <mô tả đúng đáp án đúng, vd "a man typing on a laptop at an office desk">. Ảnh phải thể hiện đúng hành động/vị trí này làm trọng tâm, không mập mờ, để người xem có thể mô tả lại bằng 1 câu tiếng Anh duy nhất.`} />
-            <p className="text-xs">Tạo xong, đặt tên ảnh đúng theo <code>number</code> của câu (vd number: 1 → q1.jpg) rồi bỏ vào thư mục image/.</p>
-          </div>
-
-          <div className="border rounded-lg p-3.5 flex flex-col gap-2">
-            <p className="font-semibold text-foreground">🤖 Nhờ AI tự tạo audio + ảnh cho cả đề (nâng cao)</p>
-            <p>
-              Nếu đang nhờ 1 AI khác (vd 1 phiên Claude riêng, có quyền chạy lệnh/code) tự generate
-              toàn bộ audio đọc đề và ảnh Part 1 thay vì tự làm tay, bấm{' '}
-              <strong className="text-foreground">Copy</strong> bên dưới và gửi nguyên văn cho AI đó
-              — đây là playbook đã chạy thành công (cách cài TTS, cách ghép audio từng Part, cách vẽ
-              ảnh đen trắng bằng code, cách đóng gói zip theo đúng cấu trúc thư mục ở trên), giúp AI
-              làm đúng ngay lần đầu, không phải dò lại từ đầu hoặc đi sai hướng đã thất bại.
-            </p>
-            <CopyBlock text={ASSET_GENERATION_GUIDE} />
-          </div>
-
-          <div className="bg-muted border rounded-lg px-3.5 py-2.5 text-xs">
-            🎤 Thêm field <code>transcript</code> (multiline, <code>transcript: |</code>) cho câu hỏi để
-            dùng được chế độ <strong className="text-foreground">"Nghe &amp; gõ lại"</strong> ở tab Học —
-            mô phỏng nghe 2 lần: <strong className="text-foreground">Bước 1</strong> nghe lần đầu rồi chọn
-            đáp án A/B/C/D như bình thường, kiểm tra chỉ báo đúng/sai (không lộ text); <strong className="text-foreground">Bước 2</strong> nghe
-            lại rồi gõ lại nguyên văn, MỖI DÒNG trong transcript là MỘT câu audio đọc riêng nên có 1 ô nhập
-            riêng (Part 1: 4 ô A-D, Part 2: 4 ô gồm câu hỏi + 3 đáp án) — xong cả 2 bước mới hiện giải thích.
-            Câu thiếu transcript vẫn luôn chọn đáp án như bình thường.
-          </div>
-
-          <div className="bg-muted border rounded-lg px-3.5 py-2.5 text-xs">
-            🐢 Mỗi audio trong app có nút chọn tốc độ phát (0.5x/0.75x/0.85x/1x) cạnh thanh nghe —
-            dùng khi nghe chưa rõ 1 câu nào đó, không cần tạo lại audio chậm hơn riêng.
-            Nếu audio là do AI tự tạo (TTS, xem mục "Nhờ AI tự tạo audio" ở trên) và khi nghe kỹ
-            (kể cả ở tốc độ chậm) thấy transcript ghi KHÔNG khớp với thực tế đọc ra — có thể do TTS
-            đọc sai/nuốt một từ nào đó — hãy sửa lại transcript cho đúng với audio thật đang có
-            (transcript phải mô tả đúng cái tai nghe được), không sửa ngược lại audio.
-          </div>
-
-          <p>Block audio dùng chung (passage, media: audio), đặc trưng Part 3-4:</p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Trường</TableHead>
-                <TableHead>Bắt buộc</TableHead>
-                <TableHead>Mô tả</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {PASSAGE_FIELDS.map(([name, required, desc]) => (
-                <TableRow key={name}>
-                  <TableCell className="font-mono text-foreground">{name}</TableCell>
-                  <TableCell>{required === 'Có' ? <strong>Có</strong> : required}</TableCell>
-                  <TableCell>{desc}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <p>Block câu hỏi — các trường đặc thù TOEIC Listening (còn lại giống Quiz thường):</p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Trường</TableHead>
-                <TableHead>Bắt buộc</TableHead>
-                <TableHead>Mô tả</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {FIELDS.map(([name, required, desc]) => (
-                <TableRow key={name}>
-                  <TableCell className="font-mono text-foreground">{name}</TableCell>
-                  <TableCell>{required === 'Có' ? <strong>Có</strong> : required}</TableCell>
-                  <TableCell>{desc}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <p className="bg-muted border rounded-lg px-3.5 py-2.5">
-            Ví dụ highlight đáp án: <ExplanationText text='<hl type="time">last quarter</hl>' /> là dấu hiệu
-            thời gian, nên chọn đáp án phù hợp.
-          </p>
-
-          <p>Toàn bộ nội dung sẽ được copy (bấm nút ở góc trên):</p>
-          <CopyBlock text={FULL_GUIDE} />
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}

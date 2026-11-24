@@ -15,9 +15,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import EmptyState from '@/components/EmptyState'
 import PassageQuestionGroup from './PassageQuestionGroup'
 import ToeicSetupSidebar from './ToeicSetupSidebar'
-import ToeicReadingHelpModal from './ToeicReadingHelpModal'
-import ToeicListeningHelpModal from './ToeicListeningHelpModal'
-import ToeicTopicHelpModal from './ToeicTopicHelpModal'
+import ToeicReadingHelpModal from './help/ToeicReadingHelpModal'
+import ToeicListeningHelpModal from './help/ToeicListeningHelpModal'
+import ToeicTopicHelpModal from './help/ToeicTopicHelpModal'
 import { useToeicConfig } from '../hooks/useToeicConfig'
 
 const SESSION_KEY = 'toeic-maker-session'
@@ -35,7 +35,7 @@ export default function ToeicPage() {
   const { allQuestions, setAllQuestions, allPassages, loadFiles, files, setFiles, removeFile, clearAll: clearFileLibrary } = useFileLibrary(saved, { parseFn: parseMarkdownWithPassages })
   // Audio/ảnh cho Listening (Part 1-4) — sống riêng trong phiên làm việc, KHÔNG lưu vào session/
   // export vì object URL (blob:) chết khi reload trang, không thể phục hồi được qua localStorage.
-  const { audioByNumber, imageByNumber, audioFolderName, unmatchedFiles, loadAudioFolder, clearAudioLibrary } = useAudioLibrary()
+  const { audioByNumber, audioLowByNumber, imageByNumber, audioFolderName, unmatchedFiles, loadAudioFolder, clearAudioLibrary } = useAudioLibrary()
   const fileRef = useRef()
   const audioFolderRef = useRef()
   const importResultRef = useRef()
@@ -297,6 +297,7 @@ export default function ToeicPage() {
 
   const questionIndexOf = (q) => questions.indexOf(q)
   const getAudioUrl = (q) => q?.number != null ? audioByNumber[q.number] : undefined
+  const getAudioLowUrl = (q) => q?.number != null ? audioLowByNumber[q.number] : undefined
   const getImageUrl = (q) => q?.number != null ? imageByNumber[q.number] : undefined
 
   const goToReviewQuestion = (i) => {
@@ -442,6 +443,7 @@ export default function ToeicPage() {
                     locked={locked}
                     partHeading={showPartHeading ? g.part : null}
                     getAudioUrl={getAudioUrl}
+                    getAudioLowUrl={getAudioLowUrl}
                     getImageUrl={getImageUrl}
                     getOptionStatusAt={getOptionStatusAt}
                     toggleOptionAt={(i, key) => toggleOptionAt(i, key, { timeUp })}
@@ -522,7 +524,7 @@ export default function ToeicPage() {
             <div className="text-[0.76rem] text-muted-foreground -mt-1 flex flex-col gap-1">
               <div>
                 Đã nạp từ <strong>{audioFolderName}</strong>: {Object.keys(audioByNumber).length} audio,{' '}
-                {Object.keys(imageByNumber).length} ảnh
+                {Object.keys(audioLowByNumber).length} audio chậm, {Object.keys(imageByNumber).length} ảnh
                 {unmatchedFiles.length > 0 && <>, {unmatchedFiles.length} file không khớp tên</>}
               </div>
               {unmatchedFiles.length > 0 && (
